@@ -8,11 +8,22 @@
 -include("records.hrl").
 
 % Client API
-parse(Tokens) -> {ok, expression(Tokens)}.
+parse(Tokens) -> {ok, init(Tokens)}.
 
 parse_file(File) ->
     {ok, Tokens} = scanner:lex_file(File),
     parse(Tokens).
+
+
+
+% TODO: should we just get rid of the eof token? Empty list indicates EOF, no?
+init(L) when is_list(L) ->
+    L1 = L -- [eof],
+    % io:format ("PARSING: ~p~n", [L1]),
+    % expression(L1).
+    % TODO: will this need to change when we can parse statements?
+    {E, []} = conditional(L1),
+    E.
 
 
 
@@ -115,6 +126,8 @@ primary([nil|T])         -> {{literal, nil}, T};
 primary([{number, N}|T]) -> {{literal, N}, T};
 primary([{string, S}|T]) -> {{literal, S}, T};
 primary([lparen|T])      ->
+
+io:format("before match ~p~n", [T]),
     {Expr, T1} = expression(T),
     T2 = consume(rparen, T1, "Expect ')' after expression."),
     {{grouping, Expr}, T2}.

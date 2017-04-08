@@ -12,8 +12,22 @@ Conditional call operator: ?.
         x = nil;
         x?.Bar(); // returns nil
 
+
+
+Produce float results to same precision (and rounded) as input.
+    eg:
+    0.3-0.1 // returns 0.199999999999999998
+
+
+
+
+
+
+
+DONE
+====
+
 Using the minus sign to trim part of a string:
 
     var x = "Foobar";
     x - "bar"; //returns "Foo"
-

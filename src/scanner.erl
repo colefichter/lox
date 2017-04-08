@@ -6,6 +6,10 @@
 -include("records.hrl").
 
 
+
+% TODO: any number with leading zero doesn't work!
+
+
 lex_file(File) ->
     {ok, Bin} = file:read_file(File),
     lex(Bin).
@@ -80,7 +84,7 @@ lex(<<"this",  B/binary>>, Tokens) -> lex(B, [this|Tokens]);
 lex(<<"true",  B/binary>>, Tokens) -> lex(B, [true|Tokens]);
 lex(<<"while", B/binary>>, Tokens) -> lex(B, [while|Tokens]);
 
-lex(<<D:1/binary, B/binary>>, Tokens) when (D >= <<$1>>) and (D =< <<$9>>) ->
+lex(<<D:1/binary, B/binary>>, Tokens) when (D >= <<$0>>) and (D =< <<$9>>) ->
     {N, B1} = number(list_to_binary([D, B])),
     lex(B1, [{number, N}|Tokens]);
 
