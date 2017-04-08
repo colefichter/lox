@@ -12,3 +12,8 @@ Conditional call operator: ?.
         x = nil;
         x?.Bar(); // returns nil
 
+Using the minus sign to trim part of a string:
+
+    var x = "Foobar";
+    x - "bar"; //returns "Foo"
+

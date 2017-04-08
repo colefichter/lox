@@ -1,43 +1,55 @@
 -module(interpreter).
 
--behaviour(gen_server).
-
-% Client API
--export([start_link/0, repl/0, error/2]).
-
-% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
-
--define(SERVER, ?MODULE).
+-export([visit/1]).
 
 
-start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
-repl() -> gen_server:cast(?SERVER, {repl}).
 
 
-% gen_server callbacks
-init([]) -> 
-    % Send the first repl message to get the loop going.
-    repl(),
-    {ok, []}.
-handle_call(_Request, _From, State) -> {reply, {error, unknown_call}, State}.
-handle_cast({repl}, State) ->
-    Input = io:get_line("LOX > "),
-    {ok, Tokens} = scanner:lex(Input),
-    %io:format("     ~p~n", [Tokens]),
-    {ok, Ast} = parser:parse(Tokens),
-    io:format("      ~p~n", [Ast]),
-    repl(),
-    {noreply, State};
-handle_cast(_Msg, State)            -> {noreply, State}.
-handle_info(_Info, State)           -> {noreply, State}.
-terminate(_Reason, _State)          -> ok.
-code_change(_OldVsn, State, _Extra) -> {ok, State}.
+
+visit({binary, LExp, Op, RExp}) ->
+    LVal = visit(LExp),
+    RVal = visit(RExp),
+    case Op of
+        % Our == and != implementation is easier than in the book because we don't need to worry about calling .equals()
+        % on a null reference. Here, nil == nil is fine and something like nil == "test" will be false with no error.
+        bang_equal      -> LVal /= RVal;
+        equal_equal     -> LVal == RVal;
+        greater         -> LVal > RVal;
+        greater_equal   -> LVal >= RVal;
+        less            -> LVal < RVal;
+        less_equal      -> LVal =< RVal;
+        minus           -> LVal - RVal;
+        slash           -> LVal / RVal;
+        star            -> LVal * RVal;
+        plus            ->  addOrConcat(LVal, RVal)
+        %TODO string trim with minus sign. See ideas.md
+    end;
+
+visit({unary, Op, RExp}) ->
+    RVal = visit(RExp),
+    case Op of
+        minus -> -RVal;
+        bang  -> not isTrue(RVal)
+    end;
+
+visit({grouping, E}) ->
+    visit(E).
 
 
-% UTILS
-error(Line, Message) -> report(Line, "", Message).
 
-% TODO: figure out how to report some of the source at the error location.
-report(Line, _Where, Message) -> io:format("~p| ~p~n", [Line, Message]).
+
+
+addOrConcat(LVal, RVal) when is_list(LVal) andalso is_list(RVal) ->
+    LVal ++ RVal;
+addOrConcat(LVal, RVal) -> %strings above, numbers here.
+    LVal + RVal.
+
+% TODO: Is this right? Erlang doesn't have null... does this jive with our parser?
+isTrue(nil) -> false;
+isTrue(false) -> false;
+isTrue(_) -> true. %Pretty simple: nil and false are false, everything else is true.
+
+
+% isEqual(nil, nil) -> true;
+% isEqual(nil, _) -> false;
+% isEqual(LVal, RVal) -> LVal == RVal.

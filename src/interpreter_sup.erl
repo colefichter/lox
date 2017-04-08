@@ -23,5 +23,5 @@ start_link() -> supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 init([]) ->
     MaxRestart = 1000,
     MaxTime = 1000,
-    InterpreterServer = ?CHILD(interpreter, worker),
+    InterpreterServer = ?CHILD(interpreter_server, worker),
     {ok, {{one_for_one, MaxRestart, MaxTime}, [InterpreterServer]}}.
