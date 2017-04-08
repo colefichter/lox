@@ -1,0 +1,1 @@
+-record(t, {type, line, literal=""}).
