@@ -1,2 +1,2 @@
-# franz
-Kafka-inspired distributed log as a service, written in Erlang
+# Lox
+Following along with the excellent CraftingInterpreters.com, but in Erlang.
