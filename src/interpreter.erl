@@ -36,6 +36,7 @@ visit({binary, LExp, Op, RExp}) ->
             LVal =< RVal;
         slash ->
             check_number_operands(Op, LVal, RVal),
+            check_non_zero(Op, RVal),
             LVal / RVal;
         star  ->
             check_number_operands(Op, LVal, RVal),
@@ -54,6 +55,12 @@ visit({unary, Op, RExp}) ->
             check_boolean_operand(Op, RVal),
             not isTrue(RVal)
     end;
+% visit({prefix, Op, RExp}) ->
+%     RVal = visit(RExp),
+%     check_number_operand(Op, RVal),
+%     case Op of 
+%         plus_plus -> RVal + 1;
+%         minus_minus
 
 visit({grouping, E}) ->
     visit(E);
@@ -96,6 +103,10 @@ check_boolean_operand(_Op, true) -> ok;
 check_boolean_operand(_Op, false) -> ok;
 check_boolean_operand(Op, _) ->
     rte(type_mismatch, "Operand must be a Boolean.", Op).
+
+check_non_zero(Op, 0) ->
+    rte(divide_by_zero, "Divide by zero is invalid.", Op);
+check_non_zero(_, _) -> ok.
 
 rte(Type, Message, Op) ->
     throw({runtime_error, Type, Message, Op}).

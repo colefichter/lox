@@ -7,8 +7,6 @@
 
 
 
-% TODO: any number with leading zero doesn't work!
-
 
 lex_file(File) ->
     {ok, Bin} = file:read_file(File),

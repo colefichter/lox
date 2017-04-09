@@ -1,6 +1,9 @@
 NOTES
 =====
 
+The parser supports prefix & postfix ++/-- ops, but so far the interpreter doesn't. Will we cover this in statements?
+
+
 Fun stuff to try adding:
 
 Null coalescing operator, like in C#: ??
