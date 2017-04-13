@@ -72,7 +72,7 @@ lex(<<"else",  B/binary>>, Tokens) -> lex(B, [else|Tokens]);
 lex(<<"false", B/binary>>, Tokens) -> lex(B, [false|Tokens]);
 lex(<<"fun",   B/binary>>, Tokens) -> lex(B, ['fun'|Tokens]);
 lex(<<"for",   B/binary>>, Tokens) -> lex(B, [for|Tokens]);
-lex(<<"if",    B/binary>>, Tokens) -> lex(B, ['ir'|Tokens]);
+lex(<<"if",    B/binary>>, Tokens) -> lex(B, ['if'|Tokens]);
 lex(<<"nil",   B/binary>>, Tokens) -> lex(B, [nil|Tokens]);
 lex(<<"or",    B/binary>>, Tokens) -> lex(B, ['or'|Tokens]);
 lex(<<"print", B/binary>>, Tokens) -> lex(B, [print|Tokens]);
