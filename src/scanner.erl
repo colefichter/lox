@@ -34,61 +34,64 @@ lex(<<"\n",    B/binary>>, Tokens) ->
 
 lex(<<$",     B/binary>>, Tokens) ->
     {Literal, B1} = string(B),
-    lex(B1, [{string, Literal}|Tokens]);
+    % lex(B1, [{string, Literal}|Tokens]);
+    continue(B1, Literal, {string, Literal}, Tokens);
 
-lex(<<",",    B/binary>>, Tokens) -> lex(B, [comma|Tokens]);
-lex(<<".",    B/binary>>, Tokens) -> lex(B, [dot|Tokens]);
-lex(<<";",    B/binary>>, Tokens) -> lex(B, [semi_colon|Tokens]);
-lex(<<"?",    B/binary>>, Tokens) -> lex(B, [question|Tokens]);
-lex(<<":",    B/binary>>, Tokens) -> lex(B, [colon|Tokens]);
+lex(<<",",    B/binary>>, Tokens) -> continue(B, ",", comma, Tokens);
+lex(<<".",    B/binary>>, Tokens) -> continue(B, ".", dot, Tokens);
+lex(<<";",    B/binary>>, Tokens) -> continue(B, ";", semi_colon, Tokens);
+lex(<<"?",    B/binary>>, Tokens) -> continue(B, "?", question, Tokens);
+lex(<<":",    B/binary>>, Tokens) -> continue(B, ":", colon, Tokens);
 
-lex(<<"++",   B/binary>>, Tokens) -> lex(B, [plus_plus|Tokens]);
-lex(<<"--",   B/binary>>, Tokens) -> lex(B, [minus_minus|Tokens]);
+lex(<<"++",   B/binary>>, Tokens) -> continue(B, "++", plus_plus, Tokens);
+lex(<<"--",   B/binary>>, Tokens) -> continue(B, "--", minus_minus, Tokens);
 
-lex(<<"!=",   B/binary>>, Tokens) -> lex(B, [bang_equal|Tokens]);
-lex(<<"!",    B/binary>>, Tokens) -> lex(B, [bang|Tokens]);
+lex(<<"!=",   B/binary>>, Tokens) -> continue(B, "!=", bang_equal, Tokens);
+lex(<<"!",    B/binary>>, Tokens) -> continue(B, "!", bang, Tokens);
 
-lex(<<"==",   B/binary>>, Tokens) -> lex(B, [equal_equal|Tokens]);
-lex(<<"=",    B/binary>>, Tokens) -> lex(B, [equal|Tokens]);
-lex(<<">=",   B/binary>>, Tokens) -> lex(B, [greater_equal|Tokens]);
-lex(<<">",    B/binary>>, Tokens) -> lex(B, [greater|Tokens]);
-lex(<<"<=",   B/binary>>, Tokens) -> lex(B, [less_equal|Tokens]);
-lex(<<"<",    B/binary>>, Tokens) -> lex(B, [less|Tokens]);
+lex(<<"==",   B/binary>>, Tokens) -> continue(B, "==", equal_equal, Tokens);
+lex(<<"=",    B/binary>>, Tokens) -> continue(B, "=", equal, Tokens);
+lex(<<">=",   B/binary>>, Tokens) -> continue(B, ">=", greater_equal, Tokens);
+lex(<<">",    B/binary>>, Tokens) -> continue(B, ">", greater, Tokens);
+lex(<<"<=",   B/binary>>, Tokens) -> continue(B, "<=", less_equal, Tokens);
+lex(<<"<",    B/binary>>, Tokens) -> continue(B, "<", less, Tokens);
 
-lex(<<"+",    B/binary>>, Tokens) -> lex(B, [plus|Tokens]);
-lex(<<"-",    B/binary>>, Tokens) -> lex(B, [minus|Tokens]);
-lex(<<"*",    B/binary>>, Tokens) -> lex(B, [star|Tokens]);
-lex(<<"/",    B/binary>>, Tokens) -> lex(B, [slash|Tokens]);
+lex(<<"+",    B/binary>>, Tokens) -> continue(B, "+", plus, Tokens);
+lex(<<"-",    B/binary>>, Tokens) -> continue(B, "-", minus, Tokens);
+lex(<<"*",    B/binary>>, Tokens) -> continue(B, "*", star, Tokens);
+lex(<<"/",    B/binary>>, Tokens) -> continue(B, "/", slash, Tokens);
 
-lex(<<"(",    B/binary>>, Tokens) -> lex(B, [lparen|Tokens]);
-lex(<<")",    B/binary>>, Tokens) -> lex(B, [rparen|Tokens]);
-lex(<<"{",    B/binary>>, Tokens) -> lex(B, [lbrace|Tokens]);
-lex(<<"}",    B/binary>>, Tokens) -> lex(B, [rbrace|Tokens]);
+lex(<<"(",    B/binary>>, Tokens) -> continue(B, "(", lparen, Tokens);
+lex(<<")",    B/binary>>, Tokens) -> continue(B, ")", rparen, Tokens);
+lex(<<"{",    B/binary>>, Tokens) -> continue(B, "{", lbrace, Tokens);
+lex(<<"}",    B/binary>>, Tokens) -> continue(B, "}", rbrace, Tokens);
 
-lex(<<"var",   B/binary>>, Tokens) -> lex(B, [var|Tokens]);
-lex(<<"and",   B/binary>>, Tokens) -> lex(B, ['and'|Tokens]);
-lex(<<"class", B/binary>>, Tokens) -> lex(B, [class|Tokens]);
-lex(<<"else",  B/binary>>, Tokens) -> lex(B, [else|Tokens]);
-lex(<<"false", B/binary>>, Tokens) -> lex(B, [false|Tokens]);
-lex(<<"fun",   B/binary>>, Tokens) -> lex(B, ['fun'|Tokens]);
-lex(<<"for",   B/binary>>, Tokens) -> lex(B, [for|Tokens]);
-lex(<<"if",    B/binary>>, Tokens) -> lex(B, ['if'|Tokens]);
-lex(<<"nil",   B/binary>>, Tokens) -> lex(B, [nil|Tokens]);
-lex(<<"or",    B/binary>>, Tokens) -> lex(B, ['or'|Tokens]);
-lex(<<"print", B/binary>>, Tokens) -> lex(B, [print|Tokens]);
-lex(<<"return",B/binary>>, Tokens) -> lex(B, [return|Tokens]);
-lex(<<"super", B/binary>>, Tokens) -> lex(B, [super|Tokens]);
-lex(<<"this",  B/binary>>, Tokens) -> lex(B, [this|Tokens]);
-lex(<<"true",  B/binary>>, Tokens) -> lex(B, [true|Tokens]);
-lex(<<"while", B/binary>>, Tokens) -> lex(B, [while|Tokens]);
+lex(<<"var",   B/binary>>, Tokens) -> continue(B, "var", var, Tokens);
+lex(<<"and",   B/binary>>, Tokens) -> continue(B, "and", 'and', Tokens);
+lex(<<"class", B/binary>>, Tokens) -> continue(B, "class", class, Tokens);
+lex(<<"else",  B/binary>>, Tokens) -> continue(B, "else", else, Tokens);
+lex(<<"false", B/binary>>, Tokens) -> continue(B, "false", false, Tokens);
+lex(<<"fun",   B/binary>>, Tokens) -> continue(B, "fun", 'fun', Tokens);
+lex(<<"for",   B/binary>>, Tokens) -> continue(B, "for", for, Tokens);
+lex(<<"if",    B/binary>>, Tokens) -> continue(B, "if", 'if', Tokens);
+lex(<<"nil",   B/binary>>, Tokens) -> continue(B, "nil", nil, Tokens);
+lex(<<"or",    B/binary>>, Tokens) -> continue(B, "or", 'or', Tokens);
+lex(<<"print", B/binary>>, Tokens) -> continue(B, "print", print, Tokens);
+lex(<<"return",B/binary>>, Tokens) -> continue(B, "return", return, Tokens);
+lex(<<"super", B/binary>>, Tokens) -> continue(B, "super", super, Tokens);
+lex(<<"this",  B/binary>>, Tokens) -> continue(B, "this", this, Tokens);
+lex(<<"true",  B/binary>>, Tokens) -> continue(B, "true", true, Tokens);
+lex(<<"while", B/binary>>, Tokens) -> continue(B, "while", while, Tokens);
 
 lex(<<D:1/binary, B/binary>>, Tokens) when (D >= <<$0>>) and (D =< <<$9>>) ->
     {N, B1} = number(list_to_binary([D, B])),
-    lex(B1, [{number, N}|Tokens]);
+    % lex(B1, [{number, N}|Tokens]);
+    continue(B1, N, {number, N}, Tokens);
 
-lex(Bin, Tokens) ->
-    {Id, Bin1} = identifier(Bin),
-    lex(Bin1, [{id, Id}|Tokens]).
+lex(B, Tokens) ->
+    {Id, B1} = identifier(B),
+    % lex(B1, [{id, Id}|Tokens]).
+    continue(B1, Id, {id, Id}, Tokens).
 
 
 comment(Bin) -> 
@@ -143,12 +146,6 @@ current_line() -> get(line_number).
 
 
 % HELPERS
-add(Type, Tokens) -> 
-    Token = #t{type=Type, line=current_line()},
-    [Token|Tokens].
-add(Type, Literal, Tokens) ->
-    Token = #t{type=Type, line=current_line(), literal=Literal},
-    [Token|Tokens].
 
 string_to_number(S) ->
     {N, []} = case string:chr(S, $.) > 0 of
@@ -166,3 +163,14 @@ accumulated_literal_to_string(Literal) ->
 report(Error) ->
     L = current_line(),
     interpreter:error(L, Error).
+
+
+% Helpers for managing the token records
+
+to_token(Type, Literal) ->
+    Line = current_line(),
+    #t{type=Type, line=Line, literal=Literal}.
+
+continue(Bin, Literal, Type, Tokens) ->
+    NewToken = to_token(Type, Literal),
+    lex(Bin, [NewToken|Tokens]).

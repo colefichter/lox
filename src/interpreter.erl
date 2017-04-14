@@ -16,12 +16,8 @@ visit({binary, LExp, Op, RExp}) ->
     case Op of
         % Our == and != implementation is easier than in the book because we don't need to worry about calling .equals()
         % on a null reference. Here, nil == nil is fine and something like nil == "test" will be false with no error.
-        bang_equal  -> 
-            check_number_operands(Op, LVal, RVal),
-            LVal /= RVal;
-        equal_equal -> 
-            check_number_operands(Op, LVal, RVal),
-            LVal == RVal;
+        bang_equal  -> LVal /= RVal;
+        equal_equal -> LVal == RVal;
         greater -> 
             check_number_operands(Op, LVal, RVal),
             LVal > RVal;
@@ -41,8 +37,8 @@ visit({binary, LExp, Op, RExp}) ->
         star  ->
             check_number_operands(Op, LVal, RVal),
             LVal * RVal;
-        minus ->subtractOrTrim(LVal, RVal);
-        plus  ->addOrConcat(LVal, RVal)
+        minus -> subtractOrTrim(LVal, RVal);
+        plus  -> addOrConcat(LVal, RVal)
     end;
 
 visit({unary, Op, RExp}) ->
