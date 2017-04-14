@@ -36,11 +36,11 @@ conditional(Tokens) ->
     {Expr1, Tokens2} = conditional_if(Expr, Tokens1),
     {Expr1, Tokens2}.
 
-conditional_if(CondExpr, [#t{type=question}|Tokens]) ->
+conditional_if(CondExpr, [#t{type=question}=T|Tokens]) ->
     {ThenBranch, Tokens1} = expression(Tokens),
-    Tokens2 = consume(colon, Tokens1, "Expect ':' after then branch of conditional expression."),
+    Tokens2 = consume(colon, Tokens1, "Expect ':' after then branch of conditional expression"),
     {ElseBranch, Tokens3} = conditional(Tokens2),
-    Expr = {conditional, CondExpr, ThenBranch, ElseBranch},
+    Expr = {conditional, CondExpr, ThenBranch, ElseBranch, T},
     {Expr, Tokens3}; %This one is an optional rather than a loop, so don't recurse!
 conditional_if(Expr, Tokens) ->
     {Expr, Tokens}.
@@ -51,9 +51,9 @@ equality(Tokens) ->
     {Expr1, Tokens2} = equality_while(Expr, Tokens1),
     {Expr1, Tokens2}.
 
-equality_while(Left, [#t{type=Op}|Tokens]) when Op == bang_equal orelse Op == equal_equal ->
+equality_while(Left, [#t{type=Op}=T|Tokens]) when Op == bang_equal orelse Op == equal_equal ->
     {Right, Tokens1} = comparison(Tokens),
-    Expr = {binary, Left, Op, Right},
+    Expr = {binary, Left, Op, Right, T},
     equality_while(Expr, Tokens1);
 equality_while(Expr, Tokens) ->
     {Expr, Tokens}. 
@@ -64,9 +64,9 @@ comparison(Tokens) ->
     {Expr1, Tokens2} = comparison_while(Expr, Tokens1),
     {Expr1, Tokens2}.
 
-comparison_while(Left, [#t{type=Op}|Tokens]) when Op == greater orelse Op == greater_equal orelse Op == less orelse Op == less_equal ->
+comparison_while(Left, [#t{type=Op}=T|Tokens]) when Op == greater orelse Op == greater_equal orelse Op == less orelse Op == less_equal ->
     {Right, Tokens1} = term(Tokens),
-    Expr = {binary, Left, Op, Right},
+    Expr = {binary, Left, Op, Right, T},
     comparison_while(Expr, Tokens1);
 comparison_while(Expr, Tokens) ->
     {Expr, Tokens}.
@@ -77,9 +77,9 @@ term(Tokens) ->
     {Expr1, Tokens2} = term_while(Expr, Tokens1),
     {Expr1, Tokens2}.
 
-term_while(Left, [#t{type=Op}|Tokens]) when Op == minus orelse Op == plus ->
+term_while(Left, [#t{type=Op}=T|Tokens]) when Op == minus orelse Op == plus ->
     {Right, Tokens1} = factor(Tokens),
-    Expr = {binary, Left, Op, Right},
+    Expr = {binary, Left, Op, Right, T},
     term_while(Expr, Tokens1);
 term_while(Expr, Tokens) ->
     {Expr, Tokens}.
@@ -90,21 +90,21 @@ factor(Tokens) ->
     {Expr1, Tokens2} = factor_while(Expr, Tokens1),
     {Expr1, Tokens2}.
 
-factor_while(Left, [#t{type=Op}|Tokens]) when Op == slash orelse Op == star ->
+factor_while(Left, [#t{type=Op}=T|Tokens]) when Op == slash orelse Op == star ->
     {Right, Tokens1} = unary(Tokens),
-    Expr = {binary, Left, Op, Right},
+    Expr = {binary, Left, Op, Right, T},
     factor_while(Expr, Tokens1);
 factor_while(Expr, Tokens) ->
     {Expr, Tokens}.
 
 
 % Prefix increment (++) and decrement (--) are unary operators
-unary([#t{type=Op}|Tokens]) when Op == bang orelse Op == minus->
+unary([#t{type=Op}=T|Tokens]) when Op == bang orelse Op == minus->
     {Right, Tokens1} = unary(Tokens),
-    {{unary, Op, Right}, Tokens1};
-unary([#t{type=Op}|Tokens]) when Op == plus_plus orelse Op == minus_minus->
+    {{unary, Op, Right, T}, Tokens1};
+unary([#t{type=Op}=T|Tokens]) when Op == plus_plus orelse Op == minus_minus->
     {Right, Tokens1} = unary(Tokens),
-    {{prefix, Op, Right}, Tokens1};
+    {{prefix, Op, Right, T}, Tokens1};
 unary(Tokens) ->
     postfix(Tokens).
 
@@ -113,30 +113,26 @@ postfix(Tokens) ->
     {Expr, Tokens1} = primary(Tokens),
     {Expr1, Tokens2} = postfix_while(Expr, Tokens1),
     {Expr1, Tokens2}.
-postfix_while(Left, [#t{type=Op}|Tokens]) when Op == plus_plus orelse Op == minus_minus ->
-    Expr = {{posfix, Left, Op}, Tokens},
+postfix_while(Left, [#t{type=Op}=T|Tokens]) when Op == plus_plus orelse Op == minus_minus ->
+    Expr = {{posfix, Left, Op, T}, Tokens},
     postfix_while(Expr, Tokens);
 postfix_while(Expr, Tokens) ->
     {Expr, Tokens}.
 
 
-primary([#t{type=false}|Tokens])       -> {{literal, false}, Tokens};
-primary([#t{type=true}|Tokens])        -> {{literal, true}, Tokens};
-primary([#t{type=nil}|Tokens])         -> {{literal, nil}, Tokens};
-primary([#t{type={number, N}}|Tokens]) -> {{literal, N}, Tokens};
-primary([#t{type={string, S}}|Tokens]) -> {{literal, S}, Tokens};
-primary([#t{type=lparen}|Tokens])      ->
-    io:format("before match ~p~n", [Tokens]),
+primary([#t{type=false}=T|Tokens])       -> {{literal, false, T}, Tokens};
+primary([#t{type=true}=T|Tokens])        -> {{literal, true, T}, Tokens};
+primary([#t{type=nil}=T|Tokens])         -> {{literal, nil, T}, Tokens};
+primary([#t{type={number, N}}=T|Tokens]) -> {{literal, N, T}, Tokens};
+primary([#t{type={string, S}}=T|Tokens]) -> {{literal, S, T}, Tokens};
+primary([#t{type=lparen}=T|Tokens])      ->
     {Expr, Tokens1} = expression(Tokens),
-    Tokens2 = consume(rparen, Tokens1, "Expect ')' after expression."),
-    {{grouping, Expr}, Tokens2}.
-
+    Tokens2 = consume(rparen, Tokens1, "Expect ')' after expression"),
+    {{grouping, Expr, T}, Tokens2}.
 
 
 consume(Expected, [#t{type=Expected}|Tokens], _Err) -> Tokens;
-consume(_Expected, Tokens, Err) ->
-    err(Err),
+consume(_Expected, Tokens, ErrorMessage) ->
+    [T|_] = Tokens,
+    interpreter:error(T#t.line, T#t.literal, ErrorMessage),
     Tokens.
-
-err(Error) ->
-    interpreter:error(999, Error).

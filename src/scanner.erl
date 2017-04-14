@@ -107,7 +107,9 @@ string(<<$", B/binary>>, Literal) ->
 string(<<Char:1/binary, B/binary>>, Literal) -> 
     string(B, [Char|Literal]);
 string(<<>>, Literal) ->
-    report("Unterminated string literal."),
+    % TODO: either throw an error or add a HasErrors property somewhere. Right now, this displays the
+    % error but the interpreter conintues happily along.
+    report("Unterminated string literal"),
     String = accumulated_literal_to_string(Literal),
     {String, <<>>}.
 
