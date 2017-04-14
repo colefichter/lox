@@ -104,6 +104,10 @@ rte(Type, Message, Op, T) ->
 
 % UTILS
 error(Line, Message) -> 
-    io:format("~p| ~s at unknown location.~n", [Line, Message]).
+    Out = io_lib:format("~p| ~s at unknown location.~n", [Line, Message]),
+    highlight(Out).
 error(Line, Literal, Message) -> 
-    io:format("~p| ~s near ~p.~n", [Line, Message, Literal]).
+    Out = io_lib:format("~p| ~s near ~p.~n", [Line, Message, Literal]),
+    highlight(Out).
+
+highlight(Message) -> io:format("~s", [color:red(Message)]).

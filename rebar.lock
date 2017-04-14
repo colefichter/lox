@@ -1,1 +1,4 @@
-[].
+[{<<"color">>,
+  {git,"git@github.com:julianduque/erlang-color.git",
+       {ref,"2e538a3360cfdf47906929a04b9471a1f5320afe"}},
+  0}].
