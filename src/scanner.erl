@@ -34,7 +34,6 @@ lex(<<"\n",    B/binary>>, Tokens) ->
 
 lex(<<$",     B/binary>>, Tokens) ->
     {Literal, B1} = string(B),
-    % lex(B1, [{string, Literal}|Tokens]);
     continue(B1, Literal, {string, Literal}, Tokens);
 
 lex(<<",",    B/binary>>, Tokens) -> continue(B, ",", comma, Tokens);
@@ -85,12 +84,10 @@ lex(<<"while", B/binary>>, Tokens) -> continue(B, "while", while, Tokens);
 
 lex(<<D:1/binary, B/binary>>, Tokens) when (D >= <<$0>>) and (D =< <<$9>>) ->
     {N, B1} = number(list_to_binary([D, B])),
-    % lex(B1, [{number, N}|Tokens]);
     continue(B1, N, {number, N}, Tokens);
 
 lex(B, Tokens) ->
     {Id, B1} = identifier(B),
-    % lex(B1, [{id, Id}|Tokens]).
     continue(B1, Id, {id, Id}, Tokens).
 
 
