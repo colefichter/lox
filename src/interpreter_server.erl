@@ -25,24 +25,18 @@ init([]) ->
 handle_call(_Request, _From, State) -> {reply, {error, unknown_call}, State}.
 handle_cast({repl}, State) ->
     Input = io:get_line("LOX > "),
+    % TODO: handle lexing errors:
     {ok, Tokens} = scanner:lex(Input),
-    % io:format("     ~s:~p~n", [color:cyan("TOKENS"), Tokens]),
+    % TODO: handle parsing errors:
     {ok, Ast} = parser:parse(Tokens),
-    % io:format("        ~s:~p~n", [color:cyan("AST"), Ast]),
-
     try interpreter:visit(Ast) of
         Result ->
             io:format("~s~n", [color:green(io_lib:format("~p", [Result]))])
     catch
-        % TESTING ERROR REPORTING WITH LINES
         {runtime_error, _RTEType, Message, _Op, Line, Literal} ->
             io:format("     ~s:~p~n", [color:cyan("TOKENS"), Tokens]),
             io:format("        ~s:~p~n", [color:cyan("AST"), Ast]),
             interpreter:error(Line, Literal, Message)
-
-        % {runtime_error, _Type, Message, Op} ->
-        %     % io:format("     ERRROR: ~p ~p near ~p~n", [Type, Message, Op])
-        %     interpreter:error(999, Op, Message)
     end,
     
     repl(),

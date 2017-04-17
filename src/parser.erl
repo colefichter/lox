@@ -19,9 +19,6 @@ parse_file(File) ->
 % TODO: should we just get rid of the eof token? Empty list indicates EOF, no?
 init(Tokens) when is_list(Tokens) ->
     Tokens1 = Tokens -- [eof],
-    % io:format ("PARSING: ~p~n", [L1]),
-    % expression(L1).
-    % TODO: will this need to change when we can parse statements?
     {E, []} = conditional(Tokens1),
     E.
 
@@ -53,7 +50,7 @@ equality(Tokens) ->
 
 equality_while(Left, [#t{type=Op}=T|Tokens]) when Op == bang_equal orelse Op == equal_equal ->
     {Right, Tokens1} = comparison(Tokens),
-    Expr = {binary, Left, Op, Right, T},
+    Expr = b_ast(Left, Op, Right, T),
     equality_while(Expr, Tokens1);
 equality_while(Expr, Tokens) ->
     {Expr, Tokens}. 
@@ -66,7 +63,7 @@ comparison(Tokens) ->
 
 comparison_while(Left, [#t{type=Op}=T|Tokens]) when Op == greater orelse Op == greater_equal orelse Op == less orelse Op == less_equal ->
     {Right, Tokens1} = term(Tokens),
-    Expr = {binary, Left, Op, Right, T},
+    Expr = b_ast(Left, Op, Right, T),
     comparison_while(Expr, Tokens1);
 comparison_while(Expr, Tokens) ->
     {Expr, Tokens}.
@@ -79,7 +76,7 @@ term(Tokens) ->
 
 term_while(Left, [#t{type=Op}=T|Tokens]) when Op == minus orelse Op == plus ->
     {Right, Tokens1} = factor(Tokens),
-    Expr = {binary, Left, Op, Right, T},
+    Expr = b_ast(Left, Op, Right, T),
     term_while(Expr, Tokens1);
 term_while(Expr, Tokens) ->
     {Expr, Tokens}.
@@ -92,7 +89,7 @@ factor(Tokens) ->
 
 factor_while(Left, [#t{type=Op}=T|Tokens]) when Op == slash orelse Op == star ->
     {Right, Tokens1} = unary(Tokens),
-    Expr = {binary, Left, Op, Right, T},
+    Expr = b_ast(Left, Op, Right, T),
     factor_while(Expr, Tokens1);
 factor_while(Expr, Tokens) ->
     {Expr, Tokens}.
@@ -101,10 +98,10 @@ factor_while(Expr, Tokens) ->
 % Prefix increment (++) and decrement (--) are unary operators
 unary([#t{type=Op}=T|Tokens]) when Op == bang orelse Op == minus->
     {Right, Tokens1} = unary(Tokens),
-    {{unary, Op, Right, T}, Tokens1};
+    r_ast(unary, Op, Right, T, Tokens1);
 unary([#t{type=Op}=T|Tokens]) when Op == plus_plus orelse Op == minus_minus->
     {Right, Tokens1} = unary(Tokens),
-    {{prefix, Op, Right, T}, Tokens1};
+    r_ast(prefix, Op, Right, T, Tokens1);
 unary(Tokens) ->
     postfix(Tokens).
 
@@ -114,21 +111,20 @@ postfix(Tokens) ->
     {Expr1, Tokens2} = postfix_while(Expr, Tokens1),
     {Expr1, Tokens2}.
 postfix_while(Left, [#t{type=Op}=T|Tokens]) when Op == plus_plus orelse Op == minus_minus ->
-    Expr = {{posfix, Left, Op, T}, Tokens},
+    Expr = l_ast(postfix, Left, Op, T, Tokens),
     postfix_while(Expr, Tokens);
 postfix_while(Expr, Tokens) ->
     {Expr, Tokens}.
 
 
-primary([#t{type=false}=T|Tokens])       -> {{literal, false, T}, Tokens};
-primary([#t{type=true}=T|Tokens])        -> {{literal, true, T}, Tokens};
-primary([#t{type=nil}=T|Tokens])         -> {{literal, nil, T}, Tokens};
-primary([#t{type={number, N}}=T|Tokens]) -> {{literal, N, T}, Tokens};
-primary([#t{type={string, S}}=T|Tokens]) -> {{literal, S, T}, Tokens};
+primary([#t{type=Val}=T|Tokens]) when Val == false orelse Val == true orelse Val == nil -> 
+    ast(literal, Val, T, Tokens);
+primary([#t{type={Label, Val}}=T|Tokens]) when Label == number orelse Label == string -> 
+    ast(literal, Val, T, Tokens);
 primary([#t{type=lparen}=T|Tokens])      ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(rparen, Tokens1, "Expect ')' after expression"),
-    {{grouping, Expr, T}, Tokens2}.
+    ast(grouping, Expr, T, Tokens2).
 
 
 consume(Expected, [#t{type=Expected}|Tokens], _Err) -> Tokens;
@@ -136,3 +132,15 @@ consume(_Expected, Tokens, ErrorMessage) ->
     [T|_] = Tokens,
     interpreter:error(T#t.line, T#t.literal, ErrorMessage),
     Tokens.
+
+
+% Create an AST node and return it with the remaining tokens.
+ast(Type, Value, T, Tokens) -> {{Type, Value, T}, Tokens}.
+
+% Create an AST node with a Left expression.
+l_ast(Type, Left, Op, T, Tokens) -> {{Type, Left, Op, T}, Tokens}.
+%Create an AST node with a Right expression
+r_ast(Type, Op, Right, T, Tokens) -> {{Type, Op, Right, T}, Tokens}.
+
+% Create an AST node with both Left and Right expressions. Does not package up the remaining tokens!
+b_ast(Left, Op, Right, T) -> {binary, Left, Op, Right, T}.
