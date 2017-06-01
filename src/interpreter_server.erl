@@ -28,17 +28,17 @@ handle_cast({repl}, State) ->
     % TODO: handle lexing errors:
     {ok, Tokens} = scanner:lex(Input),
     % TODO: handle parsing errors:
-    {ok, Ast} = parser:parse(Tokens),
-    try interpreter:visit(Ast) of
-        Result ->
-            io:format("~s~n", [color:green(io_lib:format("~p", [Result]))])
-    catch
-        {runtime_error, _RTEType, Message, _Op, Line, Literal} ->
-            io:format("     ~s:~p~n", [color:cyan("TOKENS"), Tokens]),
-            io:format("        ~s:~p~n", [color:cyan("AST"), Ast]),
-            interpreter:error(Line, Literal, Message)
-    end,
-    
+    {ok, Statements} = parser:parse(Tokens),
+    ok = interpreter:interpret(Statements),
+    % try interpreter:visit(Ast) of
+    %     Result ->
+    %         io:format("~s~n", [color:green(io_lib:format("~p", [Result]))])
+    % catch
+    %     {runtime_error, _RTEType, Message, _Op, Line, Literal} ->
+    %         io:format("     ~s:~p~n", [color:cyan("TOKENS"), Tokens]),
+    %         io:format("        ~s:~p~n", [color:cyan("AST"), Ast]),
+    %         interpreter:error(Line, Literal, Message)
+    % end,
     repl(),
     {noreply, State};
 handle_cast(_Msg, State)            -> {noreply, State}.
