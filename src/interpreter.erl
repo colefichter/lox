@@ -13,10 +13,10 @@ interpret([S|Statements]) ->
         ok -> ok
     catch
         {runtime_error, _RTEType, Message, _Op, Line, Literal} ->
-            io:format("     ~s:~p~n", [color:cyan("TOKENS"), Tokens]),
-            io:format("        ~s:~p~n", [color:cyan("AST"), Ast]),
+            io:format("  ~s:~p~n", [color:cyan("STATEMENT"), S]),
+            % io:format("        ~s:~p~n", [color:cyan("AST"), Ast]),
             error(Line, Literal, Message)
-    end
+    end,
     interpret(Statements).
 
 %%%%%%%%%%%%%%%%%%%%%
