@@ -14,6 +14,14 @@ The parser supports prefix & postfix ++/-- ops, but so far the interpreter doesn
 
 Fun stuff to try adding:
 
+unless keyword
+
+arrays/lists and basic list comprehensions
+
+tuples
+
+simple pattern matching?
+
 Null coalescing operator, like in C#: ??
 
 Conditional call operator: ?.
