@@ -19,9 +19,26 @@ parse_file(File) ->
 % TODO: should we just get rid of the eof token? Empty list indicates EOF, no?
 init(Tokens) when is_list(Tokens) ->
     Tokens1 = Tokens -- [eof],
-    {E, []} = conditional(Tokens1),
+    {E, []} = statement_list(Tokens1),
     E.
 
+
+statement_list(Tokens) ->
+    statement_list(Tokens, []).
+statement_list([], Statements) ->
+    lists:reverse(Statements);
+statement_list(Tokens, Statements) ->
+    {S, Tokens1} = statement(Tokens),
+    statement_list(Tokens1, [S|Statements]).
+
+statement([#t{type=print}=T|Tokens]) ->
+    {Expr, Tokens1} = expression(Tokens),
+    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression"),
+    {{print, Expr, T}, Tokens2}; %% TODO: indicate that it's a statement?
+statement(Tokens) ->
+    {Expr, Tokens1} = expression(Tokens),
+    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression"),
+    {{expr_stmt, Expr, T}, Tokens2}. %TODO: is this a format for the tuple?
 
 
 expression(Tokens) ->
@@ -144,3 +161,4 @@ r_ast(Type, Op, Right, T, Tokens) -> {{Type, Op, Right, T}, Tokens}.
 
 % Create an AST node with both Left and Right expressions. Does not package up the remaining tokens!
 b_ast(Left, Op, Right, T) -> {binary, Left, Op, Right, T}.
+

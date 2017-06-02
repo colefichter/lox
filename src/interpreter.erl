@@ -1,10 +1,40 @@
 -module(interpreter).
 
--export([visit/1, error/2, error/3]).
+-export([interpret/1, visit/1, error/2, error/3]).
 
 -include("records.hrl").
 
+interpret([]) -> ok;
+interpret([S|Statements]) ->    
+    % try visit(S) of
+    %     Result ->
+    %         io:format("~s~n", [color:green(io_lib:format("~p", [Result]))])
+    try visit(S) of
+        ok -> ok
+    catch
+        {runtime_error, _RTEType, Message, _Op, Line, Literal} ->
+            io:format("     ~s:~p~n", [color:cyan("TOKENS"), Tokens]),
+            io:format("        ~s:~p~n", [color:cyan("AST"), Ast]),
+            error(Line, Literal, Message)
+    end
+    interpret(Statements).
 
+%%%%%%%%%%%%%%%%%%%%%
+% Statements
+%%%%%%%%%%%%%%%%%%%%%
+
+visit({print, E, _}) ->
+    V = visit(E),
+    io:format("~p", [V]),
+    ok;
+
+visit({expr_stmt, Expr, _}) ->
+    visit(Expr),
+    ok;
+
+%%%%%%%%%%%%%%%%%%%%%
+% Expressions
+%%%%%%%%%%%%%%%%%%%%%
 visit({binary, LExp, Op, RExp, T}) ->
     LVal = visit(LExp),
     RVal = visit(RExp),
