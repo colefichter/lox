@@ -1,6 +1,6 @@
 -module(interpreter).
 
--export([interpret/1, visit/1, error/2, error/3]).
+-export([interpret/1, visit/1, error/2, error/3, rte]).
 
 -include("records.hrl").
 

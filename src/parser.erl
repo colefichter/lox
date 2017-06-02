@@ -19,25 +19,65 @@ parse_file(File) ->
 % TODO: should we just get rid of the eof token? Empty list indicates EOF, no?
 init(Tokens) when is_list(Tokens) ->
     Tokens1 = Tokens -- [eof],
-    {E, []} = statement_list(Tokens1),
+    {E, []} = program(Tokens1),
     E.
 
 
-statement_list(Tokens) ->
-    statement_list(Tokens, []).
-statement_list([], Statements) ->
-    lists:reverse(Statements);
-statement_list(Tokens, Statements) ->
-    {S, Tokens1} = statement(Tokens),
-    statement_list(Tokens1, [S|Statements]).
+program(Tokens) ->
+    declaration_list(Tokens).
+
+declaration_list(Tokens) ->
+    declaration_list(Tokens, []).
+declaration_list([], Declarations) ->
+    lists:reverse(Declarations);
+declaration_list(Tokens, Declarations) ->
+    try declaration(Tokens) of
+        {D, Tokens1} ->
+            declaration_list(Tokens1, [D|Declarations])    
+    catch
+        {parse_error, Message, Line, Literal} ->            
+            interpreter:error(Line, Literal, Message),
+            Tokens2 = synchronize(Tokens)
+            declaration_list(Tokens2, Declarations)
+    end.
+
+declaration([#t{type=var}=T|Tokens]) ->
+    {Id, Tokens1} = identifier(Tokens), % TODO: How to correctly handle missing var name?
+    {InitilizerExpr, Tokens2} = initializer(Tokens1),
+    Tokens3 = consume(semi_colon, Tokens2, "Expect ';' after variable declaration"),
+    {{variable, Id, InitilizerExpr, T}, Tokens3};
+declaration(Tokens) ->
+    statement(Tokens).
+%% TODO: Catch parse error and synchronize in declaration()? How to do it? Do we need it?
+
+identifier([#t{type={id, Id}}=T|Tokens]) ->
+    {Id, Tokens};
+identifier([T|_Tokens]) ->
+    % interpreter:error(T#t.line, T#t.literal, "Expect variable name."),
+    pe("Expect variable name after var keyword.", T).
+
+initializer([#t{type=equal}=T|Tokens]) ->
+    {Expr, Tokens1} = expression(Tokens),
+    {Expr, Tokens1};
+initializer(Tokens) ->
+    {nil, Tokens}.
+
+
+% statement_list(Tokens) ->
+%     statement_list(Tokens, []).
+% statement_list([], Statements) ->
+%     lists:reverse(Statements);
+% statement_list(Tokens, Statements) ->
+%     {S, Tokens1} = statement(Tokens),
+%     statement_list(Tokens1, [S|Statements]).
 
 statement([#t{type=print}=T|Tokens]) ->
     {Expr, Tokens1} = expression(Tokens),
-    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression"),
+    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement."),
     {{print, Expr, T}, Tokens2}; %% TODO: indicate that it's a statement?
 statement(Tokens) ->
     {Expr, Tokens1} = expression(Tokens),
-    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression"),
+    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression statement."),
     {{expr_stmt, Expr, unknown_token}, Tokens2}. %TODO: is this a format for the tuple?
 
 
@@ -138,16 +178,31 @@ primary([#t{type=Val}=T|Tokens]) when Val == false orelse Val == true orelse Val
     ast(literal, Val, T, Tokens);
 primary([#t{type={Label, Val}}=T|Tokens]) when Label == number orelse Label == string -> 
     ast(literal, Val, T, Tokens);
+primar([#t{type={id, Id}}=T|Tokens]) ->
+    ast(id, Id, T, Tokens);  % TODO: is this correct?
 primary([#t{type=lparen}=T|Tokens])      ->
     {Expr, Tokens1} = expression(Tokens),
-    Tokens2 = consume(rparen, Tokens1, "Expect ')' after expression"),
+    Tokens2 = consume(rparen, Tokens1, "Expect ')' after grouping expression"),
     ast(grouping, Expr, T, Tokens2).
+
+
+
+
+synchronize([]) ->
+    [];
+synchronize([#t{type=Type}=T|Tokens]) when Type == semi_colon orelse Type == class orelse Type == 'fun' orelse
+                                           Type == var orelse Type == for orelse Type == 'if' orelse
+                                           Type == while orelse Type == print orelse Type == 'return' orelse ->
+    Tokens;
+synchronize([_T|Tokens]) ->
+    synchronize(Tokens);
 
 
 consume(Expected, [#t{type=Expected}|Tokens], _Err) -> Tokens;
 consume(_Expected, Tokens, ErrorMessage) ->
     [T|_] = Tokens,
-    interpreter:error(T#t.line, T#t.literal, ErrorMessage),
+    % interpreter:error(T#t.line, T#t.literal, ErrorMessage),
+    pe(ErrorMessage, T),
     Tokens.
 
 
@@ -162,3 +217,6 @@ r_ast(Type, Op, Right, T, Tokens) -> {{Type, Op, Right, T}, Tokens}.
 % Create an AST node with both Left and Right expressions. Does not package up the remaining tokens!
 b_ast(Left, Op, Right, T) -> {binary, Left, Op, Right, T}.
 
+
+pe(Message, T) ->
+    throw({parse_error, Message, T#t.line, T#t.literal}).
