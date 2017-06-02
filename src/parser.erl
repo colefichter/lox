@@ -15,7 +15,6 @@ parse_file(File) ->
     parse(Tokens).
 
 
-
 % TODO: should we just get rid of the eof token? Empty list indicates EOF, no?
 init(Tokens) when is_list(Tokens) ->
     Tokens1 = Tokens -- [eof],
@@ -35,8 +34,9 @@ declaration_list(Tokens, Declarations) ->
         {D, Tokens1} ->
             declaration_list(Tokens1, [D|Declarations])    
     catch
-        {parse_error, Message, Line, Literal} ->            
-            interpreter:error(Line, Literal, Message),
+        {parse_error, Message, Line, Literal} ->   
+            %TODO: move error handling out of interpreter module.         
+            interpreter:error(parse_error, Line, Literal, Message),
             Tokens2 = synchronize(Tokens)
             declaration_list(Tokens2, Declarations)
     end.
@@ -45,7 +45,7 @@ declaration([#t{type=var}=T|Tokens]) ->
     {Id, Tokens1} = identifier(Tokens), % TODO: How to correctly handle missing var name?
     {InitilizerExpr, Tokens2} = initializer(Tokens1),
     Tokens3 = consume(semi_colon, Tokens2, "Expect ';' after variable declaration"),
-    {{variable, Id, InitilizerExpr, T}, Tokens3};
+    {{var_stmt, Id, InitilizerExpr, T}, Tokens3}; % This is a variable declaration statement
 declaration(Tokens) ->
     statement(Tokens).
 %% TODO: Catch parse error and synchronize in declaration()? How to do it? Do we need it?
@@ -60,21 +60,14 @@ initializer([#t{type=equal}=T|Tokens]) ->
     {Expr, Tokens1} = expression(Tokens),
     {Expr, Tokens1};
 initializer(Tokens) ->
-    {nil, Tokens}.
+    % {nil, Tokens}.
+    ast(literal, nil, no_token, Tokens).
 
-
-% statement_list(Tokens) ->
-%     statement_list(Tokens, []).
-% statement_list([], Statements) ->
-%     lists:reverse(Statements);
-% statement_list(Tokens, Statements) ->
-%     {S, Tokens1} = statement(Tokens),
-%     statement_list(Tokens1, [S|Statements]).
 
 statement([#t{type=print}=T|Tokens]) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement."),
-    {{print, Expr, T}, Tokens2}; %% TODO: indicate that it's a statement?
+    {{print_stmt, Expr, T}, Tokens2}; %% TODO: indicate that it's a statement?
 statement(Tokens) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression statement."),
@@ -179,7 +172,7 @@ primary([#t{type=Val}=T|Tokens]) when Val == false orelse Val == true orelse Val
 primary([#t{type={Label, Val}}=T|Tokens]) when Label == number orelse Label == string -> 
     ast(literal, Val, T, Tokens);
 primar([#t{type={id, Id}}=T|Tokens]) ->
-    ast(id, Id, T, Tokens);  % TODO: is this correct?
+    ast(variable, Id, T, Tokens);  % This is variable expression that will be looked up at runtime.
 primary([#t{type=lparen}=T|Tokens])      ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(rparen, Tokens1, "Expect ')' after grouping expression"),

@@ -18,29 +18,25 @@ repl() -> gen_server:cast(?SERVER, {repl}).
 
 
 % gen_server callbacks
-init([]) -> 
-    % Send the first repl message to get the loop going.
-    repl(),
-    {ok, []}.
+init([]) ->     
+    repl(), % Send the first repl message to get the loop going.
+    Env = environment:new(), % Create the global env. This will stay alive as long as the interpreter/REPL is alive.
+    {ok, Env}.
 handle_call(_Request, _From, State) -> {reply, {error, unknown_call}, State}.
-handle_cast({repl}, State) ->
+handle_cast({repl}, Env) ->
     Input = io:get_line("LOX > "),
     % TODO: handle lexing errors:
     {ok, Tokens} = scanner:lex(Input),
     % TODO: handle parsing errors:
     {ok, Statements} = parser:parse(Tokens),
+
+    % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
+    put(env, Env),
     ok = interpreter:interpret(Statements),
-    % try interpreter:visit(Ast) of
-    %     Result ->
-    %         io:format("~s~n", [color:green(io_lib:format("~p", [Result]))])
-    % catch
-    %     {runtime_error, _RTEType, Message, _Op, Line, Literal} ->
-    %         io:format("     ~s:~p~n", [color:cyan("TOKENS"), Tokens]),
-    %         io:format("        ~s:~p~n", [color:cyan("AST"), Ast]),
-    %         interpreter:error(Line, Literal, Message)
-    % end,
-    repl(),
-    {noreply, State};
+    Env1 = erase(Env),       
+    
+    repl(), % Send a message to keep the REPL loop running.
+    {noreply, Env1};
 handle_cast(_Msg, State)            -> {noreply, State}.
 handle_info(_Info, State)           -> {noreply, State}.
 terminate(_Reason, _State)          -> ok.

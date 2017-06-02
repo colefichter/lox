@@ -1,6 +1,8 @@
 -module(environment).
 
--export([new/0]).
+-export([new/0, define/3, get/3]).
+
+-include("records.hrl").
 
 % Create a new environment to hold state
 new() -> dict:new().
@@ -14,9 +16,10 @@ define(Name, Value, Env) ->
 	%	 print a; // "after".
 	dict:store(Name, Value, Env). 
 
-get(Name, Env) ->
-	case dict:find(Name, Env) of
+% Expects a TOKEN in addition to the literal name of the variable to lookup. This is just for error reporting.
+get(Name, Token, Env) ->
+	case dict:find(Id, Env) of
 		{ok, Value} -> Value;
 		error -> 
-			interpreter:rte(undefined_variable, "Undefined variable", no_operator, Name)
+			interpreter:rte(undefined_variable, "Undefined variable", T)
 	end.

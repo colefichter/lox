@@ -1,21 +1,17 @@
 -module(interpreter).
 
--export([interpret/1, visit/1, error/2, error/3, rte]).
+-export([interpret/1, visit/1, error/2, error/4, rte/3]).
 
 -include("records.hrl").
 
 interpret([]) -> ok;
 interpret([S|Statements]) ->    
-    % try visit(S) of
-    %     Result ->
-    %         io:format("~s~n", [color:green(io_lib:format("~p", [Result]))])
     try visit(S) of
         ok -> ok
     catch
-        {runtime_error, _RTEType, Message, _Op, Line, Literal} ->
+        {runtime_error, Type, Message, Line, Literal} ->
             io:format("  ~s:~p~n", [color:cyan("STATEMENT"), S]),
-            % io:format("        ~s:~p~n", [color:cyan("AST"), Ast]),
-            error(Line, Literal, Message)
+            error(Type, Line, Literal, Message)
     end,
     interpret(Statements).
 
@@ -23,7 +19,16 @@ interpret([S|Statements]) ->
 % Statements
 %%%%%%%%%%%%%%%%%%%%%
 
-visit({print, E, _}) ->
+% A statement declaring a new variable (not to be confused with a variable expression, which looks up the value of a variable)
+visit({var_stmt, Id, InitilizerExpr, T}) -> 
+    Val = visit(InitilizerExpr),
+    % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
+    Env = get(env),
+    Env1 = environment:define(Id, Val, Env),
+    put(env, Env1),
+    ok;
+
+visit({print_stmt, E, _}) ->
     V = visit(E),
     io:format("~p", [V]),
     ok;
@@ -35,6 +40,7 @@ visit({expr_stmt, Expr, _}) ->
 %%%%%%%%%%%%%%%%%%%%%
 % Expressions
 %%%%%%%%%%%%%%%%%%%%%
+
 visit({binary, LExp, Op, RExp, T}) ->
     LVal = visit(LExp),
     RVal = visit(RExp),
@@ -79,6 +85,11 @@ visit({unary, Op, RExp, T}) ->
 
 visit({grouping, E, _}) ->
     visit(E);
+
+visit({variable, Id, T}) -> % A variable expression (that is, lookup the value of the variable)
+    Env = get(env),
+    Val = environment:get(Id, Token, Env),    
+    Val;
 
 visit({literal, Val, _}) -> Val.   
 
@@ -128,16 +139,20 @@ check_non_zero(_, _, _T) -> ok.
 
 
 % TODO: can we remove the Op param now that we have the token?
-rte(Type, Message, Op, T) ->
-    throw({runtime_error, Type, Message, Op, T#t.line, T#t.literal}).
+rte(Type, Message, T) ->
+    throw({runtime_error, Type, Message, T#t.line, T#t.literal}).
 
 
-% UTILS
+
+% UTILS - TODO: move out of this module. The it doesn't make sense for the parser to call interpreter:error().
 error(Line, Message) -> 
     Out = io_lib:format("~p| ~s at unknown location.~n", [Line, Message]),
     highlight(Out).
-error(Line, Literal, Message) -> 
-    Out = io_lib:format("~p| ~s near ~p.~n", [Line, Message, Literal]),
+% error(Line, Literal, Message) -> 
+%     Out = io_lib:format("~p| ~s near ~p.~n", [Line, Message, Literal]),
+%     highlight(Out).
+error(Type, Line, Literal, Message) ->
+    Out = io_lib:format("~p| (~p) ~s near ~p.~n", [Line, Type, Message, Literal]),
     highlight(Out).
 
 highlight(Message) -> io:format("~s", [color:red(Message)]).
