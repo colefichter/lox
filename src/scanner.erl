@@ -109,7 +109,18 @@ string(<<>>, Literal) ->
     {String, <<>>}.
 
 
-identifier(Bin) -> match($ , Bin).
+% identifier(Bin) -> match($ , Bin).
+identifier(Bin) -> identifier(Bin, []).
+
+identifier(<<C:1/binary, B/binary>>, Chars) when (C >= <<$0>>) and (C =< <<$9>>) 
+                                            orelse (C >= <<$a>>) and (C =< <<$z>>)
+                                            orelse (C >= <<$A>>) and (C =< <<$Z>>) ->
+    identifier(B, [C|Chars]);
+identifier(<<C:1/binary, B/binary>>, Chars) -> %anything other than digit or dot.
+    R = lists:reverse(Chars),
+    Flat = list_to_binary(R),
+    Id = binary_to_list(Flat),
+    {Id, list_to_binary([C, B])}.
 
 number(Bin) -> number(Bin, []).
 

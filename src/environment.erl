@@ -18,8 +18,8 @@ define(Name, Value, Env) ->
 
 % Expects a TOKEN in addition to the literal name of the variable to lookup. This is just for error reporting.
 get(Name, Token, Env) ->
-	case dict:find(Id, Env) of
+	case dict:find(Name, Env) of
 		{ok, Value} -> Value;
 		error -> 
-			interpreter:rte(undefined_variable, "Undefined variable", T)
+			interpreter:rte(undefined_variable, "Undefined variable", Token)
 	end.

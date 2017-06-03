@@ -33,7 +33,7 @@ handle_cast({repl}, Env) ->
     % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
     put(env, Env),
     ok = interpreter:interpret(Statements),
-    Env1 = erase(Env),       
+    Env1 = erase(env),       
     
     repl(), % Send a message to keep the REPL loop running.
     {noreply, Env1};

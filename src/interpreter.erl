@@ -30,7 +30,7 @@ visit({var_stmt, Id, InitilizerExpr, T}) ->
 
 visit({print_stmt, E, _}) ->
     V = visit(E),
-    io:format("~p", [V]),
+    io:format("~p~n", [V]),
     ok;
 
 visit({expr_stmt, Expr, _}) ->
@@ -88,7 +88,7 @@ visit({grouping, E, _}) ->
 
 visit({variable, Id, T}) -> % A variable expression (that is, lookup the value of the variable)
     Env = get(env),
-    Val = environment:get(Id, Token, Env),    
+    Val = environment:get(Id, T, Env),    
     Val;
 
 visit({literal, Val, _}) -> Val.   
@@ -99,14 +99,14 @@ addOrConcat(LVal, RVal, _) when is_list(LVal) and is_list(RVal) ->
 addOrConcat(LVal, RVal, _) when is_number(LVal) and is_number(RVal) ->
     LVal + RVal;
 addOrConcat(_, _, T) ->
-    rte(type_mismatch, "Operands must both be numbers or strings", "+", T).
+    rte(type_mismatch, "Operands must both be numbers or strings", T).
 
 subtractOrTrim(LVal, RVal, _T) when is_list(LVal) and is_list(RVal) ->
     LVal -- RVal;
 subtractOrTrim(LVal, RVal, _T) when is_number(LVal) and is_number(RVal) ->
     LVal - RVal;
 subtractOrTrim(_, _, T) ->
-    rte(type_mismatch, "Operands must both be numbers or strings", "-", T).
+    rte(type_mismatch, "Operands must both be numbers or strings", T).
 
 % Pretty simple: nil and false are false, everything else is true.
 isTrue(nil) -> false;
@@ -119,22 +119,22 @@ isTrue(_) -> true.
 % ERROR HANDLING STUFF
 check_number_operand(_Op, V, _T) when is_number(V) -> ok;
 check_number_operand(Op, _, T) ->
-    rte(type_mismatch, "Operand must be a number", Op, T).
+    rte(type_mismatch, "Operand must be a number", T).
 
 % check_number_operands(_Op, LVal, RVal) when is_number(LVal) and is_number(RVal) -> ok;
 % check_number_operands(Op, _, _) ->
 %     rte(type_mismatch, "Operands must be numbers", Op).
 check_number_operands(_Op, LVal, RVal, _T) when is_number(LVal) and is_number(RVal) -> ok;
 check_number_operands(Op, _, _, T) ->
-    rte(type_mismatch, "Operands must be numbers", Op, T).
+    rte(type_mismatch, "Operands must be numbers", T).
     
 check_boolean_operand(_Op, true, _T) -> ok;
 check_boolean_operand(_Op, false, _T) -> ok;
 check_boolean_operand(Op, _, T) ->
-    rte(type_mismatch, "Operand must be a Boolean", Op, T).
+    rte(type_mismatch, "Operand must be a Boolean", T).
 
 check_non_zero(Op, 0, T) ->
-    rte(divide_by_zero, "Divide by zero is invalid", Op, T);
+    rte(divide_by_zero, "Divide by zero is invalid", T);
 check_non_zero(_, _, _T) -> ok.
 
 

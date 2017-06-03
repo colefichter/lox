@@ -18,8 +18,7 @@ parse_file(File) ->
 % TODO: should we just get rid of the eof token? Empty list indicates EOF, no?
 init(Tokens) when is_list(Tokens) ->
     Tokens1 = Tokens -- [eof],
-    {E, []} = program(Tokens1),
-    E.
+    program(Tokens1).
 
 
 program(Tokens) ->
@@ -37,7 +36,7 @@ declaration_list(Tokens, Declarations) ->
         {parse_error, Message, Line, Literal} ->   
             %TODO: move error handling out of interpreter module.         
             interpreter:error(parse_error, Line, Literal, Message),
-            Tokens2 = synchronize(Tokens)
+            Tokens2 = synchronize(Tokens),
             declaration_list(Tokens2, Declarations)
     end.
 
@@ -50,13 +49,13 @@ declaration(Tokens) ->
     statement(Tokens).
 %% TODO: Catch parse error and synchronize in declaration()? How to do it? Do we need it?
 
-identifier([#t{type={id, Id}}=T|Tokens]) ->
+identifier([#t{type={id, Id}}|Tokens]) ->
     {Id, Tokens};
 identifier([T|_Tokens]) ->
     % interpreter:error(T#t.line, T#t.literal, "Expect variable name."),
-    pe("Expect variable name after var keyword.", T).
+    pe("Expect variable name after 'var' keyword", T).
 
-initializer([#t{type=equal}=T|Tokens]) ->
+initializer([#t{type=equal}|Tokens]) ->
     {Expr, Tokens1} = expression(Tokens),
     {Expr, Tokens1};
 initializer(Tokens) ->
@@ -66,11 +65,11 @@ initializer(Tokens) ->
 
 statement([#t{type=print}=T|Tokens]) ->
     {Expr, Tokens1} = expression(Tokens),
-    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement."),
+    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement"),
     {{print_stmt, Expr, T}, Tokens2}; %% TODO: indicate that it's a statement?
 statement(Tokens) ->
     {Expr, Tokens1} = expression(Tokens),
-    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression statement."),
+    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression statement"),
     {{expr_stmt, Expr, unknown_token}, Tokens2}. %TODO: is this a format for the tuple?
 
 
@@ -171,7 +170,7 @@ primary([#t{type=Val}=T|Tokens]) when Val == false orelse Val == true orelse Val
     ast(literal, Val, T, Tokens);
 primary([#t{type={Label, Val}}=T|Tokens]) when Label == number orelse Label == string -> 
     ast(literal, Val, T, Tokens);
-primar([#t{type={id, Id}}=T|Tokens]) ->
+primary([#t{type={id, Id}}=T|Tokens]) ->
     ast(variable, Id, T, Tokens);  % This is variable expression that will be looked up at runtime.
 primary([#t{type=lparen}=T|Tokens])      ->
     {Expr, Tokens1} = expression(Tokens),
@@ -183,12 +182,12 @@ primary([#t{type=lparen}=T|Tokens])      ->
 
 synchronize([]) ->
     [];
-synchronize([#t{type=Type}=T|Tokens]) when Type == semi_colon orelse Type == class orelse Type == 'fun' orelse
+synchronize([#t{type=Type}|Tokens]) when Type == semi_colon orelse Type == class orelse Type == 'fun' orelse
                                            Type == var orelse Type == for orelse Type == 'if' orelse
-                                           Type == while orelse Type == print orelse Type == 'return' orelse ->
+                                           Type == while orelse Type == print orelse Type == return ->
     Tokens;
 synchronize([_T|Tokens]) ->
-    synchronize(Tokens);
+    synchronize(Tokens).
 
 
 consume(Expected, [#t{type=Expected}|Tokens], _Err) -> Tokens;
