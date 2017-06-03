@@ -1,0 +1,5 @@
+class Brunch < Breakfast {
+  drink() {
+    print "How about a Blood Mary?";
+  }
+}

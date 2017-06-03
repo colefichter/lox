@@ -1,0 +1,4 @@
+var min = 10;
+var max = 20;
+var average = (min + max) / 2;
+print average;
