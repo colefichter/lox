@@ -20,12 +20,9 @@ interpret([S|Statements]) ->
 %%%%%%%%%%%%%%%%%%%%%
 
 % A statement declaring a new variable (not to be confused with a variable expression, which looks up the value of a variable)
-visit({var_stmt, Id, InitilizerExpr, T}) -> 
+visit({var_stmt, Id, InitilizerExpr, _T}) -> 
     Val = visit(InitilizerExpr),
-    % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
-    Env = get(env),
-    Env1 = environment:define(Id, Val, Env),
-    put(env, Env1),
+    environment:define(Id, Val),
     ok;
 
 visit({print_stmt, E, _}) ->
@@ -40,6 +37,16 @@ visit({expr_stmt, Expr, _}) ->
 %%%%%%%%%%%%%%%%%%%%%
 % Expressions
 %%%%%%%%%%%%%%%%%%%%%
+
+% Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
+visit({assign, Name, Value, T}) ->
+    Val = visit(Value),
+    environment:assign(Name, Val, T),
+    % Return the assigned value so that the following works:
+    %  var a = 1;
+    %  print a = 2; //"2"
+    Val; 
+
 
 visit({binary, LExp, Op, RExp, T}) ->
     LVal = visit(LExp),
@@ -87,8 +94,7 @@ visit({grouping, E, _}) ->
     visit(E);
 
 visit({variable, Id, T}) -> % A variable expression (that is, lookup the value of the variable)
-    Env = get(env),
-    Val = environment:get(Id, T, Env),    
+    Val = environment:get(Id, T),    
     Val;
 
 visit({literal, Val, _}) -> Val.   
@@ -116,24 +122,26 @@ isTrue(_) -> true.
 
 
 
+%TODO: clean up unused _Op params.
+
 % ERROR HANDLING STUFF
 check_number_operand(_Op, V, _T) when is_number(V) -> ok;
-check_number_operand(Op, _, T) ->
+check_number_operand(_Op, _, T) ->
     rte(type_mismatch, "Operand must be a number", T).
 
 % check_number_operands(_Op, LVal, RVal) when is_number(LVal) and is_number(RVal) -> ok;
 % check_number_operands(Op, _, _) ->
 %     rte(type_mismatch, "Operands must be numbers", Op).
 check_number_operands(_Op, LVal, RVal, _T) when is_number(LVal) and is_number(RVal) -> ok;
-check_number_operands(Op, _, _, T) ->
+check_number_operands(_Op, _, _, T) ->
     rte(type_mismatch, "Operands must be numbers", T).
     
 check_boolean_operand(_Op, true, _T) -> ok;
 check_boolean_operand(_Op, false, _T) -> ok;
-check_boolean_operand(Op, _, T) ->
+check_boolean_operand(_Op, _, T) ->
     rte(type_mismatch, "Operand must be a Boolean", T).
 
-check_non_zero(Op, 0, T) ->
+check_non_zero(_Op, 0, T) ->
     rte(divide_by_zero, "Divide by zero is invalid", T);
 check_non_zero(_, _, _T) -> ok.
 

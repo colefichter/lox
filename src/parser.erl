@@ -74,7 +74,28 @@ statement(Tokens) ->
 
 
 expression(Tokens) ->
-    conditional(Tokens).
+    % conditional(Tokens).
+    assignment(Tokens).
+
+
+assignment(Tokens) ->
+    {Expr, Tokens1} = conditional(Tokens),
+    {Expr1, Tokens2} = assignment_if(Expr, Tokens1),
+    {Expr1, Tokens2}.
+
+assignment_if(AssignExpr, [#t{type=equal}=T|Tokens]) ->
+    Equals = T, % Just to match the code in the book...
+    {Value, Tokens1} = assignment(Tokens), % Value from the right side of the "=".
+    case AssignExpr of % AssignExpr is the left side of the "=".
+        {variable, Id, T1} ->
+            Name = Id, % Just to match the code in the book...
+            {{assign, Name, Value, T1}, Tokens1}; % TODO: is T1 the correct token to send back?
+        {_any, _any, _T} ->
+            % Is Equals the correct token to use? Should it be the _T in the pattern?
+            pe("Invalid assignment target.", Equals)
+    end;
+assignment_if(Expr, Tokens) ->
+    {Expr, Tokens}.
 
 
 conditional(Tokens) ->
