@@ -1,11 +1,27 @@
 -module(interpreter).
 
--export([interpret/1, visit/1, error/2, error/4, rte/3]).
+-export([interpret/1, interpret_file/1, visit/1, error/2, error/4, rte/3]).
 
 -include("records.hrl").
 
-interpret([]) -> ok;
-interpret([S|Statements]) ->    
+
+interpret_file(Name) ->
+    put(env, environment:new()),
+    % TODO: handle lexing errors:
+    {ok, Tokens} = scanner:lex_file(Name),
+    % TODO: handle parsing errors:
+    {ok, Statements} = parser:parse(Tokens),    
+    interpret_statements(Statements).
+
+interpret(SourceCode) ->
+    % TODO: handle lexing errors:
+    {ok, Tokens} = scanner:lex(SourceCode),
+    % TODO: handle parsing errors:
+    {ok, Statements} = parser:parse(Tokens),    
+    interpret_statements(Statements).
+
+interpret_statements([]) -> ok;
+interpret_statements([S|Statements]) ->
     try visit(S) of
         ok -> ok
     catch
@@ -13,7 +29,8 @@ interpret([S|Statements]) ->
             io:format("  ~s:~p~n", [color:cyan("STATEMENT"), S]),
             error(Type, Line, Literal, Message)
     end,
-    interpret(Statements).
+    interpret_statements(Statements).
+
 
 %%%%%%%%%%%%%%%%%%%%%
 % Statements

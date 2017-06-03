@@ -25,14 +25,10 @@ init([]) ->
 handle_call(_Request, _From, State) -> {reply, {error, unknown_call}, State}.
 handle_cast({repl}, Env) ->
     Input = io:get_line("LOX > "),
-    % TODO: handle lexing errors:
-    {ok, Tokens} = scanner:lex(Input),
-    % TODO: handle parsing errors:
-    {ok, Statements} = parser:parse(Tokens),
-
+    
     % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
     put(env, Env),
-    ok = interpreter:interpret(Statements),
+    ok = interpreter:interpret(Input),
     Env1 = erase(env),       
     
     repl(), % Send a message to keep the REPL loop running.
