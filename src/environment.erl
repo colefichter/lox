@@ -5,7 +5,7 @@
 -include("records.hrl").
 
 % Create a new environment to hold state
-new() -> dict:new().
+new() -> {dict:new(), global}.
 
 % Add a new variable to the environment
 define(Name, Value) ->
@@ -14,27 +14,58 @@ define(Name, Value) ->
 	%	 print a; // "before".
 	%	 var a = "after";
 	%	 print a; // "after".
-	Env = get(env), % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
+	{Env, Enclosed} = get(env), % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
 	Env1 = dict:store(Name, Value, Env),
-	put(env, Env1),
+	put(env, {Env1, Enclosed}),
 	ok.
 
 assign(Name, Value, Token) ->
-	Env = get(env), % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
-	Env1 = case dict:is_key(Name, Env) of % Must not all variable creation during assignment!
-		true ->
+	EnvTuple = get(env), % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
+	% Env1 = case dict:is_key(Name, Env) of % Must not all variable creation during assignment!
+	% 	true ->
+	% 		dict:store(Name, Value, Env);
+	% 	false ->
+	% 		undefined(Token)
+	% end,
+	% put(env, {Env1, Enclosed}),
+	% ok.
+	try_assign(Name, Value, EnvTuple, Token),
+	ok.
+
+try_assign(Name, Value, {Env, global}, Token) ->
+	Env1 = case dict:is_key(Name, Env) of
+		true -> 
 			dict:store(Name, Value, Env);
 		false ->
-			interpreter:rte(undefined_variable, "Undefined variable", Token)
+			undefined(Token)
 	end,
-	put(env, Env1),
-	ok.
+	put(env, {Env1, global});
+try_assign(Name, Value, {Env, Enclosed}, Token) ->
+	Env1 = case dict:is_key(Name, Env) of
+		true -> 
+			dict:store(Name, Value, Env);
+		false ->
+			try_assign(Name, Value, Enclosed, Token)
+	end,
+	put(env, {Env1, Enclosed}).
 
 % Expects a TOKEN in addition to the literal name of the variable to lookup. This is just for error reporting.
 get(Name, Token) ->
-	Env = get(env), % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
+	EnvTuple = get(env), % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
+	try_get(Name, EnvTuple, Token).
+
+try_get(Name, {Env, global}, Token) ->
+	case dict:find(Name, Env) of
+		{ok, Value} -> Value;
+		error ->
+			undefined(Token)
+	end;
+try_get(Name, {Env, Enclosed}, Token) ->
 	case dict:find(Name, Env) of
 		{ok, Value} -> Value;
 		error -> 
-			interpreter:rte(undefined_variable, "Undefined variable", Token)
+			try_get(Name, Enclosed, Token)
 	end.
+
+undefined(Token) ->
+	interpreter:rte(undefined_variable, "Undefined variable", Token).
