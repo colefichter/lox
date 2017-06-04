@@ -67,11 +67,22 @@ statement([#t{type=print}=T|Tokens]) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement"),
     {{print_stmt, Expr, T}, Tokens2}; %% TODO: indicate that it's a statement?
+statement([#t{type=lbrace}|Tokens]) -> % Start of a block
+    {BlockStatement, Tokens1} = block(Tokens),
+    {BlockStatement, Tokens1};
 statement(Tokens) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression statement"),
     {{expr_stmt, Expr, unknown_token}, Tokens2}. %TODO: is this a format for the tuple?
 
+block(Tokens) ->
+    {Statements, Tokens1} = block(Tokens, []),
+    {{block, Statements}, Tokens1}.
+block([#t{type=rbrace}|Tokens], Statements) -> %TODO: handle empty list in case code is missing }
+    {lists:reverse(Statements), Tokens};
+block(Tokens, Statements) ->
+    {S, Tokens1} = declaration(Tokens),
+    block(Tokens1, [S|Statements]).
 
 expression(Tokens) ->
     % conditional(Tokens).

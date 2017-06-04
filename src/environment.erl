@@ -1,11 +1,25 @@
 -module(environment).
 
--export([new/0, define/2, assign/3, get/2]).
+-export([new/0, define/2, assign/3, get/2, enclose/0, unenclose/0]).
 
 -include("records.hrl").
 
 % Create a new environment to hold state
 new() -> {dict:new(), global}.
+
+enclose() ->
+	Enclosed = get(env),
+	New = {dict:new(), Enclosed},
+	put(env, New),
+	ok.
+
+unenclose() ->
+	case get(env) of
+		{_, global} -> ok;
+		{_Env, Enclosed} ->
+			put(env, Enclosed)
+	end,
+	ok.
 
 % Add a new variable to the environment
 define(Name, Value) ->

@@ -44,7 +44,14 @@ visit({var_stmt, Id, InitilizerExpr, _T}) ->
 
 visit({print_stmt, E, _}) ->
     V = visit(E),
-    io:format("~p~n", [V]),
+    pretty_print(V),
+    ok;
+
+
+visit({block, Statements}) ->
+    environment:enclose(),
+    [visit(S) || S <- Statements],  %TODO: try/catch here? What if a statement throws an error?
+    environment:unenclose(),
     ok;
 
 visit({expr_stmt, Expr, _}) ->
@@ -181,3 +188,9 @@ error(Type, Line, Literal, Message) ->
     highlight(Out).
 
 highlight(Message) -> io:format("~s", [color:red(Message)]).
+
+
+pretty_print(V) when is_list(V) ->
+    io:format("~s~n", [V]);
+pretty_print(V) ->
+    io:format("~p~n", [V]).
