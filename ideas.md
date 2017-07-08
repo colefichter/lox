@@ -1,6 +1,10 @@
 NOTES
 =====
 
+When the gen_server in the shell crashes, we lose the environment. Can we use the erlang callbacks to preserve the state?
+    Need to store in db: http://erlang.org/pipermail/erlang-questions/2009-March/042473.html
+
+
 Reset line number in interpreter_server so that in the shell we can stop showing every error as line 1?
 
 Better error notification in scanner. See string()

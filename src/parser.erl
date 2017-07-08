@@ -63,17 +63,29 @@ initializer(Tokens) ->
     ast(literal, nil, no_token, Tokens).
 
 
+statement([#t{type='if'}=T|Tokens]) ->
+    Tokens1 = consume(lparen, Tokens, "Expect '(' after if statement"),
+    {ConditionalExpr, Tokens2} = expression(Tokens1),
+    Tokens3 = consume(rparen, Tokens2, "Expect ')' after if condition"),
+    {ThenBranch, Tokens4} = statement(Tokens3),
+    % [Next|Rest] = Tokens4,
+    {ElseBranch, Tokens5} = case Tokens4 of
+        [#t{type=else}|Rest] -> statement(Rest);
+        [_|_Rest1] -> {nil, Tokens4};
+        [] -> {nil, Tokens4}
+    end,
+    {{if_stmt, ConditionalExpr, ThenBranch, ElseBranch, T}, Tokens5};
 statement([#t{type=print}=T|Tokens]) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement"),
-    {{print_stmt, Expr, T}, Tokens2}; %% TODO: indicate that it's a statement?
+    {{print_stmt, Expr, T}, Tokens2};
 statement([#t{type=lbrace}|Tokens]) -> % Start of a block
     {BlockStatement, Tokens1} = block(Tokens),
     {BlockStatement, Tokens1};
 statement(Tokens) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression statement"),
-    {{expr_stmt, Expr, unknown_token}, Tokens2}. %TODO: is this a format for the tuple?
+    {{expr_stmt, Expr, unknown_token}, Tokens2}.
 
 block(Tokens) ->
     {Statements, Tokens1} = block(Tokens, []),
@@ -114,11 +126,11 @@ conditional(Tokens) ->
     {Expr1, Tokens2} = conditional_if(Expr, Tokens1),
     {Expr1, Tokens2}.
 
-conditional_if(CondExpr, [#t{type=question}=T|Tokens]) ->
+conditional_if(ConditionalExpr, [#t{type=question}=T|Tokens]) ->
     {ThenBranch, Tokens1} = expression(Tokens),
     Tokens2 = consume(colon, Tokens1, "Expect ':' after then branch of conditional expression"),
     {ElseBranch, Tokens3} = conditional(Tokens2),
-    Expr = {conditional, CondExpr, ThenBranch, ElseBranch, T},
+    Expr = {conditional, ConditionalExpr, ThenBranch, ElseBranch, T},
     {Expr, Tokens3}; %This one is an optional rather than a loop, so don't recurse!
 conditional_if(Expr, Tokens) ->
     {Expr, Tokens}.

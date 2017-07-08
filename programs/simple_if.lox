@@ -1,0 +1,7 @@
+var x = true;
+if (x) {
+    print "true branch";
+}
+else {
+    print "false branch";
+}

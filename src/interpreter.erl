@@ -42,11 +42,15 @@ visit({var_stmt, Id, InitilizerExpr, _T}) ->
     environment:define(Id, Val),
     ok;
 
+visit({if_stmt, ConditionalExpr, ThenBranch, ElseBranch, _T}) ->
+    CE = visit(ConditionalExpr),
+    eval_if(CE, ThenBranch, ElseBranch),
+    ok;
+
 visit({print_stmt, E, _}) ->
     V = visit(E),
     pretty_print(V),
     ok;
-
 
 visit({block, Statements}) ->
     environment:enclose(),
@@ -71,6 +75,9 @@ visit({assign, Name, Value, T}) ->
     %  print a = 2; //"2"
     Val; 
 
+visit({conditional, ConditionalExpr, ThenBranch, ElseBranch, _T}) ->
+    CE = visit(ConditionalExpr),
+    eval_if(CE, ThenBranch, ElseBranch);
 
 visit({binary, LExp, Op, RExp, T}) ->
     LVal = visit(LExp),
@@ -124,6 +131,13 @@ visit({variable, Id, T}) -> % A variable expression (that is, lookup the value o
 visit({literal, Val, _}) -> Val.   
 
 
+eval_if(true, ThenBranch, _ElseBranch) ->
+    visit(ThenBranch);
+eval_if(false, _ThenBranch, nil) -> 
+    ok;   
+eval_if(false, _ThenBranch, ElseBranch) ->
+    visit(ElseBranch).
+
 addOrConcat(LVal, RVal, _) when is_list(LVal) and is_list(RVal) ->
     LVal ++ RVal;
 addOrConcat(LVal, RVal, _) when is_number(LVal) and is_number(RVal) ->
@@ -142,8 +156,6 @@ subtractOrTrim(_, _, T) ->
 isTrue(nil) -> false;
 isTrue(false) -> false;
 isTrue(_) -> true.
-
-
 
 
 %TODO: clean up unused _Op params.
@@ -173,7 +185,6 @@ check_non_zero(_, _, _T) -> ok.
 % TODO: can we remove the Op param now that we have the token?
 rte(Type, Message, T) ->
     throw({runtime_error, Type, Message, T#t.line, T#t.literal}).
-
 
 
 % UTILS - TODO: move out of this module. The it doesn't make sense for the parser to call interpreter:error().
