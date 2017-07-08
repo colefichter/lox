@@ -42,6 +42,8 @@ lex(<<":",    B/binary>>, Tokens) -> continue(B, ":", colon, Tokens);
 
 lex(<<"++",   B/binary>>, Tokens) -> continue(B, "++", plus_plus, Tokens);
 lex(<<"--",   B/binary>>, Tokens) -> continue(B, "--", minus_minus, Tokens);
+% lex(<<"&&",   B/binary>>, Tokens) -> continue(B, "--", amp_amp, Tokens);
+% lex(<<"||",   B/binary>>, Tokens) -> continue(B, "--", bar_bar, Tokens);
 
 lex(<<"!=",   B/binary>>, Tokens) -> continue(B, "!=", bang_equal, Tokens);
 lex(<<"!",    B/binary>>, Tokens) -> continue(B, "!", bang, Tokens);

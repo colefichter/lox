@@ -43,8 +43,8 @@ visit({var_stmt, Id, InitilizerExpr, _T}) ->
     ok;
 
 visit({if_stmt, ConditionalExpr, ThenBranch, ElseBranch, _T}) ->
-    CE = visit(ConditionalExpr),
-    eval_if(CE, ThenBranch, ElseBranch),
+    CVal = visit(ConditionalExpr),
+    eval_if(CVal, ThenBranch, ElseBranch),
     ok;
 
 visit({print_stmt, E, _}) ->
@@ -75,9 +75,23 @@ visit({assign, Name, Value, T}) ->
     %  print a = 2; //"2"
     Val; 
 
+visit({LExp, logic_or, RExp, _T}) ->
+    LVal = visit(LExp),
+    case is_true(LVal) of
+        true -> LVal;
+        false -> visit(RExp)
+    end; %Will return val with appropriate truthiness but may not actually be true/false. See not in Control Flow chapter.
+
+visit({LExp, logic_and, RExp, _T}) ->
+    LVal = visit(LExp),
+    case is_true(LVal) of
+        false -> LVal;
+        true -> visit(RExp)
+    end; %Will return val with appropriate truthiness but may not actually be true/false. See not in Control Flow chapter.
+
 visit({conditional, ConditionalExpr, ThenBranch, ElseBranch, _T}) ->
-    CE = visit(ConditionalExpr),
-    eval_if(CE, ThenBranch, ElseBranch);
+    CVal = visit(ConditionalExpr),
+    eval_if(CVal, ThenBranch, ElseBranch);
 
 visit({binary, LExp, Op, RExp, T}) ->
     LVal = visit(LExp),
@@ -118,7 +132,7 @@ visit({unary, Op, RExp, T}) ->
             -RVal;
         bang  -> 
             check_boolean_operand(Op, RVal, T),
-            not isTrue(RVal)
+            not is_true(RVal)
     end;
 
 visit({grouping, E, _}) ->
@@ -153,9 +167,9 @@ subtractOrTrim(_, _, T) ->
     rte(type_mismatch, "Operands must both be numbers or strings", T).
 
 % Pretty simple: nil and false are false, everything else is true.
-isTrue(nil) -> false;
-isTrue(false) -> false;
-isTrue(_) -> true.
+is_true(nil) -> false;
+is_true(false) -> false;
+is_true(_) -> true.
 
 
 %TODO: clean up unused _Op params.

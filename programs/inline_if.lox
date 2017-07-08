@@ -1,0 +1,3 @@
+var x = true;
+
+print x ? "x was true" : "x was false";

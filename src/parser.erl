@@ -122,7 +122,8 @@ assignment_if(Expr, Tokens) ->
 
 
 conditional(Tokens) ->
-    {Expr, Tokens1} = equality(Tokens),
+    % {Expr, Tokens1} = equality(Tokens),
+    {Expr, Tokens1} = logic_or(Tokens),
     {Expr1, Tokens2} = conditional_if(Expr, Tokens1),
     {Expr1, Tokens2}.
 
@@ -133,6 +134,32 @@ conditional_if(ConditionalExpr, [#t{type=question}=T|Tokens]) ->
     Expr = {conditional, ConditionalExpr, ThenBranch, ElseBranch, T},
     {Expr, Tokens3}; %This one is an optional rather than a loop, so don't recurse!
 conditional_if(Expr, Tokens) ->
+    {Expr, Tokens}.
+
+
+logic_or(Tokens) ->
+    {Expr, Tokens1} = logic_and(Tokens),
+    {Expr1, Tokens2} = logic_or_while(Expr, Tokens1),
+    {Expr1, Tokens2}.
+
+logic_or_while(Left, [#t{type='or'}=T|Tokens]) ->
+    {Right, Tokens1} = logic_and(Tokens),
+    Expr = {Left, logic_or, Right, T},
+    logic_or_while(Expr, Tokens1);
+logic_or_while(Expr, Tokens) ->
+    {Expr, Tokens}.
+
+
+logic_and(Tokens) ->
+    {Expr, Tokens1} = equality(Tokens),
+    {Expr1, Tokens2} = logic_and_while(Expr, Tokens1),
+    {Expr1, Tokens2}.
+
+logic_and_while(Left, [#t{type='and'}=T|Tokens]) ->
+    {Right, Tokens1} = equality(Tokens),
+    Expr = {Left, logic_and, Right, T},
+    logic_and_while(Expr, Tokens1);
+logic_and_while(Expr, Tokens) ->
     {Expr, Tokens}.
 
 
