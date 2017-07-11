@@ -6,7 +6,7 @@
 
 
 interpret_file(Name) ->
-    put(env, environment:new()),
+    environment:new(),
     % TODO: handle lexing errors:
     {ok, Tokens} = scanner:lex_file(Name),
     % TODO: handle parsing errors:
@@ -45,6 +45,15 @@ visit({var_stmt, Id, InitilizerExpr, _T}) ->
 visit({if_stmt, ConditionalExpr, ThenBranch, ElseBranch, _T}) ->
     CVal = visit(ConditionalExpr),
     eval_if(CVal, ThenBranch, ElseBranch),
+    ok;
+
+visit({while_stmt, ConditionalExpr, LoopBody, _T}=AST) ->
+    case visit(ConditionalExpr) of
+        true -> 
+            visit(LoopBody),
+            visit(AST);
+        false -> ok
+    end,
     ok;
 
 visit({print_stmt, E, _}) ->
@@ -151,6 +160,7 @@ eval_if(false, _ThenBranch, nil) ->
     ok;   
 eval_if(false, _ThenBranch, ElseBranch) ->
     visit(ElseBranch).
+
 
 addOrConcat(LVal, RVal, _) when is_list(LVal) and is_list(RVal) ->
     LVal ++ RVal;

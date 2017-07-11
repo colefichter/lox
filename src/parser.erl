@@ -79,6 +79,12 @@ statement([#t{type=print}=T|Tokens]) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement"),
     {{print_stmt, Expr, T}, Tokens2};
+statement([#t{type=while}=T|Tokens]) ->
+    Tokens1 = consume(lparen, Tokens, "Expect '(' after while statement"),
+    {ConditionalExpr, Tokens2} = expression(Tokens1),
+    Tokens3 = consume(rparen, Tokens2, "Expect ')' after while condition"),
+    {LoopBody, Tokens4} = statement(Tokens3),
+    {{while_stmt, ConditionalExpr, LoopBody, T}, Tokens4}; 
 statement([#t{type=lbrace}|Tokens]) -> % Start of a block
     {BlockStatement, Tokens1} = block(Tokens),
     {BlockStatement, Tokens1};

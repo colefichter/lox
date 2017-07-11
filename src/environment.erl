@@ -5,7 +5,9 @@
 -include("records.hrl").
 
 % Create a new environment to hold state
-new() -> {dict:new(), global}.
+new() -> 
+	put(env, {dict:new(), global}),
+	ok.
 
 enclose() ->
 	Enclosed = get(env),
@@ -35,33 +37,25 @@ define(Name, Value) ->
 
 assign(Name, Value, Token) ->
 	EnvTuple = get(env), % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
-	% Env1 = case dict:is_key(Name, Env) of % Must not all variable creation during assignment!
-	% 	true ->
-	% 		dict:store(Name, Value, Env);
-	% 	false ->
-	% 		undefined(Token)
-	% end,
-	% put(env, {Env1, Enclosed}),
-	% ok.
-	try_assign(Name, Value, EnvTuple, Token),
+	NewEnvTuple = try_assign(Name, Value, EnvTuple, Token),
+	put(env, NewEnvTuple),
 	ok.
 
 try_assign(Name, Value, {Env, global}, Token) ->
-	Env1 = case dict:is_key(Name, Env) of
+	case dict:is_key(Name, Env) of
 		true -> 
-			dict:store(Name, Value, Env);
+			{dict:store(Name, Value, Env), global};
 		false ->
 			undefined(Token)
-	end,
-	put(env, {Env1, global});
+	end;
+
 try_assign(Name, Value, {Env, Enclosed}, Token) ->
-	Env1 = case dict:is_key(Name, Env) of
+	case dict:is_key(Name, Env) of
 		true -> 
-			dict:store(Name, Value, Env);
+			{dict:store(Name, Value, Env), Enclosed};
 		false ->
-			try_assign(Name, Value, Enclosed, Token)
-	end,
-	put(env, {Env1, Enclosed}).
+			{Env, try_assign(Name, Value, Enclosed, Token)}
+	end.
 
 % Expects a TOKEN in addition to the literal name of the variable to lookup. This is just for error reporting.
 get(Name, Token) ->
