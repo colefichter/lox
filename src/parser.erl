@@ -63,6 +63,22 @@ initializer(Tokens) ->
     ast(literal, nil, no_token, Tokens).
 
 
+statement([#t{type=for}=T|Tokens]) ->
+	Tokens1 = consume(lparen, Tokens, "Expect '(' after for statement"),
+	{InitializerExpr, Tokens2} = for_initializer(Tokens1),
+	{ConditionalExpr, Tokens3} = for_condition(Tokens2),
+	Tokens4 = consume(rparen, Tokens3, "Expect ';' after for loop condition"),
+	{IncrementExpr, Tokens5} = for_increment(Tokens4),
+	Tokens6 = consume(rparen, Tokens5, "Expect ')' after for loop clauses"),
+	{LoopBody, Tokens7} = statement(Tokens6),
+	LoopBody1 = for_combine_body_and_increment(IncrementExpr, LoopBody),
+	% Represent for loops with existing primitives, rather than adding new ones.
+	CompleteWhileLoop = {while_stmt, ConditionalExpr, LoopBody1, T},
+	FinalStatement = case InitializerExpr of
+		nil -> CompleteWhileLoop;
+		_ -> {block, [InitializerExpr|CompleteWhileLoop]}
+	end,
+	{FinalStatement, Tokens7};
 statement([#t{type='if'}=T|Tokens]) ->
     Tokens1 = consume(lparen, Tokens, "Expect '(' after if statement"),
     {ConditionalExpr, Tokens2} = expression(Tokens1),
@@ -83,7 +99,7 @@ statement([#t{type=while}=T|Tokens]) ->
     Tokens1 = consume(lparen, Tokens, "Expect '(' after while statement"),
     {ConditionalExpr, Tokens2} = expression(Tokens1),
     Tokens3 = consume(rparen, Tokens2, "Expect ')' after while condition"),
-    {LoopBody, Tokens4} = statement(Tokens3),
+    {LoopBody, Tokens4} = statement(Tokens3),    
     {{while_stmt, ConditionalExpr, LoopBody, T}, Tokens4}; 
 statement([#t{type=lbrace}|Tokens]) -> % Start of a block
     {BlockStatement, Tokens1} = block(Tokens),
@@ -92,6 +108,34 @@ statement(Tokens) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression statement"),
     {{expr_stmt, Expr, unknown_token}, Tokens2}.
+
+
+for_initializer([#t{type=semi_colon}|Tokens]) ->
+	{nil, Tokens};
+for_initializer([#t{type=var}|Tokens]) ->
+	{Expr, Tokens1} = declaration(Tokens),
+	{Expr, Tokens1};
+for_initializer(Tokens) ->
+	{Expr, Tokens1} = expression(Tokens), % TODO: Is this correct? The book uses an expression statement here.
+	{Expr, Tokens1}.	
+
+for_condition([#t{type=semi_colon}=T|_Tokens]=AllTokens) -> %Just check for semi_colon, but don't remove it from the list.
+	ast(literal, true, T, AllTokens);
+for_condition(Tokens) ->
+	{Expr, Tokens1} = expression(Tokens),
+	{Expr, Tokens1}.
+
+for_increment([#t{type=rparen}|_Tokens]=AllTokens) -> %Just check for rparen, but don't remove it from the list.
+	{nil, AllTokens};
+for_increment(Tokens) ->
+	{Expr, Tokens1} = expression(Tokens),
+	{Expr, Tokens1}.
+
+for_combine_body_and_increment(nil, LoopBody) ->
+	LoopBody;
+for_combine_body_and_increment(IncrementExpr, LoopBody) ->
+	{block, [LoopBody|IncrementExpr]}.
+
 
 block(Tokens) ->
     {Statements, Tokens1} = block(Tokens, []),
