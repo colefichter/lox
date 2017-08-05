@@ -28,7 +28,12 @@ stop(_State) -> ok.
 
 % UTIL
 format_name(Name) ->
-    case string:sub_string(Name, 1, 9) of
+    Name1 = case string:sub_string(Name, 1, 9) of
         "programs/" -> Name;
         _any -> "programs/" ++ Name
+    end,
+    Reversed = lists:reverse(Name1),
+    case string:sub_string(Reversed, 1, 4) of
+        "xol." -> Name1;
+        _ -> Name1 ++ ".lox"
     end.
