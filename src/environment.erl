@@ -6,8 +6,9 @@
 
 % Create a new environment to hold state
 new() -> 
+	Env = {dict:new(), global},
 	put(env, {dict:new(), global}),
-	ok.
+	Env.
 
 enclose() ->
 	Enclosed = get(env),

@@ -1,0 +1,7 @@
+var i = 10;   
+var j = ++i;  
+var k = i++;
+
+print i; //10
+print j; //11
+print k; //12 see https://stackoverflow.com/a/7031409

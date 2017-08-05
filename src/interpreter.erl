@@ -144,6 +144,27 @@ visit({unary, Op, RExp, T}) ->
             not is_true(RVal)
     end;
 
+visit({prefix, Op, RExp, T}) ->
+    RVal = visit(RExp),
+    check_number_operand(Op, RVal, T),
+    case Op of
+        minus_minus ->
+            RVal - 1;
+        plus_plus ->
+            RVal + 1
+    end;
+
+% visit({postfix, LExp, Op, T}) ->
+%     LVal = visit(LExp),
+%     check_number_operand(Op, LVal, T),
+%     case Op of
+%         minus_minus ->
+%             LVal - 1;
+%         plus_plus ->
+%             LVal + 1
+%     end;
+
+
 visit({grouping, E, _}) ->
     visit(E);
 
