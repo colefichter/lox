@@ -67,7 +67,7 @@ statement([#t{type=for}=T|Tokens]) ->
 	Tokens1 = consume(lparen, Tokens, "Expect '(' after for statement"),
 	{InitializerExpr, Tokens2} = for_initializer(Tokens1),
 	{ConditionalExpr, Tokens3} = for_condition(Tokens2),
-	Tokens4 = consume(rparen, Tokens3, "Expect ';' after for loop condition"),
+	Tokens4 = consume(semi_colon, Tokens3, "Expect ';' after for loop condition"),
 	{IncrementExpr, Tokens5} = for_increment(Tokens4),
 	Tokens6 = consume(rparen, Tokens5, "Expect ')' after for loop clauses"),
 	{LoopBody, Tokens7} = statement(Tokens6),
@@ -76,7 +76,7 @@ statement([#t{type=for}=T|Tokens]) ->
 	CompleteWhileLoop = {while_stmt, ConditionalExpr, LoopBody1, T},
 	FinalStatement = case InitializerExpr of
 		nil -> CompleteWhileLoop;
-		_ -> {block, [InitializerExpr|CompleteWhileLoop]}
+		_ -> {block, [InitializerExpr|[CompleteWhileLoop]]}
 	end,
 	{FinalStatement, Tokens7};
 statement([#t{type='if'}=T|Tokens]) ->
@@ -112,8 +112,8 @@ statement(Tokens) ->
 
 for_initializer([#t{type=semi_colon}|Tokens]) ->
 	{nil, Tokens};
-for_initializer([#t{type=var}|Tokens]) ->
-	{Expr, Tokens1} = declaration(Tokens),
+for_initializer([#t{type=var}|_Tokens]=AllTokens) ->
+	{Expr, Tokens1} = declaration(AllTokens),
 	{Expr, Tokens1};
 for_initializer(Tokens) ->
 	{Expr, Tokens1} = expression(Tokens), % TODO: Is this correct? The book uses an expression statement here.
@@ -134,7 +134,7 @@ for_increment(Tokens) ->
 for_combine_body_and_increment(nil, LoopBody) ->
 	LoopBody;
 for_combine_body_and_increment(IncrementExpr, LoopBody) ->
-	{block, [LoopBody|IncrementExpr]}.
+	{block, [LoopBody|[IncrementExpr]]}.
 
 
 block(Tokens) ->
