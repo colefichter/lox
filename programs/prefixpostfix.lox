@@ -5,3 +5,6 @@ var k = i++;
 print i; //10
 print j; //11
 print k; //12 see https://stackoverflow.com/a/7031409
+
+//Ignore explanation at SO. Right now our prefix & postfix operators both work as simple
+//increment expressions. They don't work like statements or have side-effects.

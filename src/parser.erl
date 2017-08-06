@@ -275,17 +275,16 @@ unary([#t{type=Op}=T|Tokens]) when Op == plus_plus orelse Op == minus_minus->
 unary(Tokens) ->
     postfix(Tokens).
 
-
 postfix(Tokens) ->
     {Expr, Tokens1} = primary(Tokens),
     {Expr1, Tokens2} = postfix_while(Expr, Tokens1),
     {Expr1, Tokens2}.
 postfix_while(Left, [#t{type=Op}=T|Tokens]) when Op == plus_plus orelse Op == minus_minus ->
-    Expr = l_ast(postfix, Left, Op, T, Tokens),
+    % Expr = l_ast(postfix, Left, Op, T, Tokens),
+    Expr = {postfix, Left, Op, T},
     postfix_while(Expr, Tokens);
 postfix_while(Expr, Tokens) ->
     {Expr, Tokens}.
-
 
 primary([#t{type=Val}=T|Tokens]) when Val == false orelse Val == true orelse Val == nil -> 
     ast(literal, Val, T, Tokens);

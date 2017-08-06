@@ -144,6 +144,8 @@ visit({unary, Op, RExp, T}) ->
             not is_true(RVal)
     end;
 
+% Prefix/postfix operators here don't work quite like C++. They are expressions only (rather than statements). 
+% No side-effects. Also, they are equivalent.
 visit({prefix, Op, RExp, T}) ->
     RVal = visit(RExp),
     check_number_operand(Op, RVal, T),
@@ -153,16 +155,15 @@ visit({prefix, Op, RExp, T}) ->
         plus_plus ->
             RVal + 1
     end;
-
-% visit({postfix, LExp, Op, T}) ->
-%     LVal = visit(LExp),
-%     check_number_operand(Op, LVal, T),
-%     case Op of
-%         minus_minus ->
-%             LVal - 1;
-%         plus_plus ->
-%             LVal + 1
-%     end;
+visit({postfix, LExp, Op, T}) ->
+    LVal = visit(LExp),
+    check_number_operand(Op, LVal, T),
+    case Op of
+        minus_minus ->
+            LVal - 1;
+        plus_plus ->
+            LVal + 1
+    end;
 
 
 visit({grouping, E, _}) ->
