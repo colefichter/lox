@@ -1,8 +1,10 @@
 -module(environment).
 
--export([new/0, define/2, assign/3, get/2, enclose/0, unenclose/0]).
+-export([current/0, new/0, define/2, assign/3, get/2, enclose/0, unenclose/0]).
 
 -include("records.hrl").
+
+current() -> get(env).
 
 % Create a new environment to hold state
 new() -> 

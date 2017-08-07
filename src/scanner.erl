@@ -1,14 +1,14 @@
 -module(scanner).
 
 % Client API
--export([lex/1, lex_file/1]).
+-export([lex/1]).
 
 -include("records.hrl").
 
 
-lex_file(File) ->
-    {ok, Bin} = file:read_file(File),
-    lex(Bin).
+% lex_file(File) ->
+%     {ok, Bin} = file:read_file(File),
+%     lex(Bin).
 
 lex(Bin) when is_binary(Bin) -> 
     start(),

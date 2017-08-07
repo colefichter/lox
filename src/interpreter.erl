@@ -1,19 +1,23 @@
 -module(interpreter).
 
--export([interpret/1, interpret_file/1, visit/1, error/2, error/4, rte/3]).
+-export([init/0, interpret/1, visit/1, error/2, error/4, warn/4, rte/3]).
 
 -include("records.hrl").
 
 
-interpret_file(Name) ->
+init() ->
     environment:new(),
+    loader:load_all(), % These end up in the global scope.
+    Env = environment:current(),
+    {ok, Env}.
+
+interpret(Bin) when is_binary(Bin) ->
     % TODO: handle lexing errors:
-    {ok, Tokens} = scanner:lex_file(Name),
+    {ok, Tokens} = scanner:lex(Bin),
     % TODO: handle parsing errors:
     {ok, Statements} = parser:parse(Tokens),    
-    interpret_statements(Statements).
-
-interpret(SourceCode) ->
+    interpret_statements(Statements);
+interpret(SourceCode) when is_list(SourceCode) ->
     % TODO: handle lexing errors:
     {ok, Tokens} = scanner:lex(SourceCode),
     % TODO: handle parsing errors:
@@ -35,6 +39,10 @@ interpret_statements([S|Statements]) ->
 %%%%%%%%%%%%%%%%%%%%%
 % Statements
 %%%%%%%%%%%%%%%%%%%%%
+
+visit({function_decl, Name, _Parameters, _Body}=F) ->
+    environment:define(Name, F),
+    ok;
 
 % A statement declaring a new variable (not to be confused with a variable expression, which looks up the value of a variable)
 visit({var_stmt, Id, InitilizerExpr, _T}) -> 
@@ -74,6 +82,13 @@ visit({expr_stmt, Expr, _}) ->
 %%%%%%%%%%%%%%%%%%%%%
 % Expressions
 %%%%%%%%%%%%%%%%%%%%%
+
+% This is the invocation of a function
+visit({call, CalleeExpr, Arguments, T}) ->
+    Callee = visit(CalleeExpr),
+    % TODO: how to check the type of the callee? See http://www.craftinginterpreters.com/functions.html#call-type-errors
+    ArgumentVals = [visit(A) || A <- Arguments],
+    lox_callable:call(?MODULE, Callee, ArgumentVals, T);
 
 % Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
 visit({assign, Name, Value, T}) ->
@@ -155,22 +170,22 @@ visit({prefix, Op, RExp, T}) ->
         plus_plus ->
             RVal + 1
     end;
-visit({postfix, LExp, Op, T}) ->
-    LVal = visit(LExp),
-    check_number_operand(Op, LVal, T),
-    case Op of
-        minus_minus ->
-            LVal - 1;
-        plus_plus ->
-            LVal + 1
-    end;
+% visit({postfix, LExp, Op, T}) ->
+%     LVal = visit(LExp),
+%     check_number_operand(Op, LVal, T),
+%     case Op of
+%         minus_minus ->
+%             LVal - 1;
+%         plus_plus ->
+%             LVal + 1
+%     end;
 
 
 visit({grouping, E, _}) ->
     visit(E);
 
 visit({variable, Id, T}) -> % A variable expression (that is, lookup the value of the variable)
-    Val = environment:get(Id, T),    
+    Val = environment:get(Id, T),   
     Val;
 
 visit({literal, Val, _}) -> Val.   
@@ -243,6 +258,10 @@ error(Line, Message) ->
 error(Type, Line, Literal, Message) ->
     Out = io_lib:format("~p| (~p) ~s near ~p.~n", [Line, Type, Message, Literal]),
     highlight(Out).
+
+warn(Type, Line, Literal, Message) ->
+    Out = io_lib:format("~p| (~p) ~s near ~p.~n", [Line, Type, Message, Literal]),
+    io:format("~s", [color:yellow(Out)]).
 
 highlight(Message) -> io:format("~s", [color:red(Message)]).
 

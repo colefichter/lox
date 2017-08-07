@@ -40,8 +40,10 @@ declaration_list(Tokens, Declarations) ->
             declaration_list(Tokens2, Declarations)
     end.
 
+declaration([#t{type='fun'}|Tokens]) ->
+    function(function, Tokens);
 declaration([#t{type=var}=T|Tokens]) ->
-    {Id, Tokens1} = identifier(Tokens), % TODO: How to correctly handle missing var name?
+    {Id, Tokens1} = identifier(Tokens, "Expect variable name after 'var' keyword"), % TODO: How to correctly handle missing var name?
     {InitilizerExpr, Tokens2} = initializer(Tokens1),
     Tokens3 = consume(semi_colon, Tokens2, "Expect ';' after variable declaration"),
     {{var_stmt, Id, InitilizerExpr, T}, Tokens3}; % This is a variable declaration statement
@@ -49,11 +51,39 @@ declaration(Tokens) ->
     statement(Tokens).
 %% TODO: Catch parse error and synchronize in declaration()? How to do it? Do we need it?
 
-identifier([#t{type={id, Id}}|Tokens]) ->
+
+function(Kind, Tokens) ->
+    Label = atom_to_list(Kind),
+    {Name, Tokens1} = identifier(Tokens, "Expect " ++ Label ++ " name"),
+    Tokens2 = consume(lparen, Tokens1, "Expect '(' after " ++ Label ++ " name"),
+    {Parameters, Tokens3} = function_parameters(Tokens2),
+    Tokens4 = consume(lbrace, Tokens3, "Expect '{' before " ++ Label ++ " body"),
+    {Body, Tokens5} = block(Tokens4),
+    {{function_decl, Name, Parameters, Body}, Tokens5}.
+
+function_parameters(Tokens) ->
+    function_parameters([], Tokens).
+function_parameters(Parameters, [#t{type=rparen}=_T|Tokens]) ->
+    {Parameters, Tokens};
+function_parameters(Parameters, [#t{type=comma}|Tokens]) ->
+    function_parameters(Parameters, Tokens);
+function_parameters(Parameters, Tokens) ->
+    case length(Parameters) >= 8 of
+        true -> 
+            [T|_] = Tokens,
+            % Don't throw the error, just warn about it. When we use this parser for something
+            % other than an interpreter, we'll need a better interface to handle this
+            pw("Function cannot have more than 8 parameters", T);
+        false -> ok
+    end,
+    {NewParamId, Tokens1} = identifier(Tokens, "Expect parameter name"),
+    Parameters1 = [NewParamId|Parameters],
+    function_parameters(Parameters1, Tokens1).
+
+identifier([#t{type={id, Id}}|Tokens], _Message) ->
     {Id, Tokens};
-identifier([T|_Tokens]) ->
-    % interpreter:error(T#t.line, T#t.literal, "Expect variable name."),
-    pe("Expect variable name after 'var' keyword", T).
+identifier([T|_Tokens], Message) ->
+    pe(Message, T).
 
 initializer([#t{type=equal}|Tokens]) ->
     {Expr, Tokens1} = expression(Tokens),
@@ -172,7 +202,6 @@ assignment_if(Expr, Tokens) ->
 
 
 conditional(Tokens) ->
-    % {Expr, Tokens1} = equality(Tokens),
     {Expr, Tokens1} = logic_or(Tokens),
     {Expr1, Tokens2} = conditional_if(Expr, Tokens1),
     {Expr1, Tokens2}.
@@ -273,18 +302,52 @@ unary([#t{type=Op}=T|Tokens]) when Op == plus_plus orelse Op == minus_minus->
     {Right, Tokens1} = unary(Tokens),
     r_ast(prefix, Op, Right, T, Tokens1);
 unary(Tokens) ->
-    postfix(Tokens).
+    % postfix(Tokens).
+    call(Tokens).
 
-postfix(Tokens) ->
+% postfix(Tokens) ->
+%     {Expr, Tokens1} = primary(Tokens),
+%     {Expr1, Tokens2} = postfix_while(Expr, Tokens1),
+%     {Expr1, Tokens2}.
+% postfix_while(Left, [#t{type=Op}=T|Tokens]) when Op == plus_plus orelse Op == minus_minus ->
+%     % Expr = l_ast(postfix, Left, Op, T, Tokens),
+%     Expr = {postfix, Left, Op, T},
+%     postfix_while(Expr, Tokens);
+% postfix_while(Expr, Tokens) ->
+%     {Expr, Tokens}.
+
+% This is the invocation of a function.
+call(Tokens) ->
     {Expr, Tokens1} = primary(Tokens),
-    {Expr1, Tokens2} = postfix_while(Expr, Tokens1),
-    {Expr1, Tokens2}.
-postfix_while(Left, [#t{type=Op}=T|Tokens]) when Op == plus_plus orelse Op == minus_minus ->
-    % Expr = l_ast(postfix, Left, Op, T, Tokens),
-    Expr = {postfix, Left, Op, T},
-    postfix_while(Expr, Tokens);
-postfix_while(Expr, Tokens) ->
+    {CalleeExpr, Tokens2} = call_while(Expr, Tokens1),
+    {CalleeExpr, Tokens2}.
+call_while(Expr, [#t{type=lparen}|Tokens]) ->
+    {Expr1,  Tokens1} = finish_call(Expr, Tokens),
+    call_while(Expr1, Tokens1);
+call_while(Expr, Tokens) ->
     {Expr, Tokens}.
+
+finish_call(CalleeExpr, Tokens) ->
+    finish_call(CalleeExpr, [], Tokens).
+
+finish_call(CalleeExpr, Arguments, [#t{type=rparen}=T|Tokens]) ->
+    Expr = {call, CalleeExpr, lists:reverse(Arguments), T},
+    {Expr, Tokens};
+finish_call(CalleeExpr, Arguments, [#t{type=comma}|Tokens]) ->
+    finish_call(CalleeExpr, Arguments, Tokens);
+finish_call(CalleeExpr, Arguments, Tokens) ->
+    case length(Arguments) >= 8 of
+        true -> 
+            [T|_] = Tokens,
+            % Don't throw the error, just warn about it. When we use this parser for something
+            % other than an interpreter, we'll need a better interface to handle this
+            pw("Function cannot have more than 8 arguments", T);
+        false -> ok
+    end,
+    {NewArg, Tokens1} = expression(Tokens),
+    Arguments1 = [NewArg|Arguments],
+    finish_call(CalleeExpr, Arguments1, Tokens1).
+    
 
 primary([#t{type=Val}=T|Tokens]) when Val == false orelse Val == true orelse Val == nil -> 
     ast(literal, Val, T, Tokens);
@@ -310,7 +373,7 @@ synchronize([_T|Tokens]) ->
     synchronize(Tokens).
 
 
-consume(Expected, [#t{type=Expected}|Tokens], _Err) -> Tokens;
+consume(Expected, [#t{type=Expected}=T|Tokens], _Err) -> Tokens;
 consume(_Expected, Tokens, ErrorMessage) ->
     [T|_] = Tokens,
     % interpreter:error(T#t.line, T#t.literal, ErrorMessage),
@@ -322,7 +385,7 @@ consume(_Expected, Tokens, ErrorMessage) ->
 ast(Type, Value, T, Tokens) -> {{Type, Value, T}, Tokens}.
 
 % Create an AST node with a Left expression.
-l_ast(Type, Left, Op, T, Tokens) -> {{Type, Left, Op, T}, Tokens}.
+% l_ast(Type, Left, Op, T, Tokens) -> {{Type, Left, Op, T}, Tokens}.
 %Create an AST node with a Right expression
 r_ast(Type, Op, Right, T, Tokens) -> {{Type, Op, Right, T}, Tokens}.
 
@@ -332,3 +395,5 @@ b_ast(Left, Op, Right, T) -> {binary, Left, Op, Right, T}.
 
 pe(Message, T) ->
     throw({parse_error, Message, T#t.line, T#t.literal}).
+pw(Message, T) ->
+    interpreter:warn(parse_warning, T#t.line, T#t.literal, Message).
