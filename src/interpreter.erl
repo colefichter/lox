@@ -11,18 +11,18 @@ init() ->
     Env = environment:current(),
     {ok, Env}.
 
-interpret(Bin) when is_binary(Bin) ->
-    % TODO: handle lexing errors:
-    {ok, Tokens} = scanner:lex(Bin),
-    % TODO: handle parsing errors:
-    {ok, Statements} = parser:parse(Tokens),    
-    interpret_statements(Statements);
-interpret(SourceCode) when is_list(SourceCode) ->
-    % TODO: handle lexing errors:
-    {ok, Tokens} = scanner:lex(SourceCode),
-    % TODO: handle parsing errors:
-    {ok, Statements} = parser:parse(Tokens),    
-    interpret_statements(Statements).
+interpret(BinOrSourceCode) ->
+    {ok, Tokens} = scanner:lex(BinOrSourceCode),
+    try parser:parse(Tokens) of
+        {ok, Statements} ->
+            interpret_statements(Statements)
+    catch
+        {parse_error, Message, Line, Literal} ->
+            ?MODULE:error(parse_error, Line, Literal, Message);
+        {parse_error, Message} ->
+            ?MODULE:error(parse_error, Message)
+    end,
+    ok.
 
 interpret_statements([]) -> ok;
 interpret_statements([S|Statements]) ->
@@ -31,7 +31,7 @@ interpret_statements([S|Statements]) ->
     catch
         {runtime_error, Type, Message, Line, Literal} ->
             io:format("  ~s:~p~n", [color:cyan("STATEMENT"), S]),
-            error(Type, Line, Literal, Message)
+            ?MODULE:error(Type, Line, Literal, Message)
     end,
     interpret_statements(Statements).
 
@@ -249,12 +249,12 @@ rte(Type, Message, T) ->
 
 
 % UTILS - TODO: move out of this module. The it doesn't make sense for the parser to call interpreter:error().
-error(Line, Message) -> 
+error(Line, Message) when is_integer(Line) -> 
     Out = io_lib:format("~p| ~s at unknown location.~n", [Line, Message]),
+    highlight(Out);
+error(Type, Message) -> 
+    Out = io_lib:format("(~p) ~s at unknown location.~n", [Type, Message]),
     highlight(Out).
-% error(Line, Literal, Message) -> 
-%     Out = io_lib:format("~p| ~s near ~p.~n", [Line, Message, Literal]),
-%     highlight(Out).
 error(Type, Line, Literal, Message) ->
     Out = io_lib:format("~p| (~p) ~s near ~p.~n", [Line, Type, Message, Literal]),
     highlight(Out).

@@ -372,8 +372,11 @@ synchronize([#t{type=Type}|Tokens]) when Type == semi_colon orelse Type == class
 synchronize([_T|Tokens]) ->
     synchronize(Tokens).
 
-
-consume(Expected, [#t{type=Expected}=T|Tokens], _Err) -> Tokens;
+consume(_Expected, [], ErrorMessage) ->
+    % This case happens with syntax error like missing semi_colon: "print 1".
+    pe(ErrorMessage),
+    [];
+consume(Expected, [#t{type=Expected}|Tokens], _Err) -> Tokens;
 consume(_Expected, Tokens, ErrorMessage) ->
     [T|_] = Tokens,
     % interpreter:error(T#t.line, T#t.literal, ErrorMessage),
@@ -393,6 +396,8 @@ r_ast(Type, Op, Right, T, Tokens) -> {{Type, Op, Right, T}, Tokens}.
 b_ast(Left, Op, Right, T) -> {binary, Left, Op, Right, T}.
 
 
+pe(Message) ->
+    throw({parse_error, Message}).
 pe(Message, T) ->
     throw({parse_error, Message, T#t.line, T#t.literal}).
 pw(Message, T) ->
