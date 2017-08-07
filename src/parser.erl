@@ -125,6 +125,15 @@ statement([#t{type=print}=T|Tokens]) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement"),
     {{print_stmt, Expr, T}, Tokens2};
+statement([#t{type=return}=T|Tokens]) ->
+    [Next|_] = Tokens,
+    {Expr, Tokens1} = case Next of
+        #t{type=semi_colon} -> {nil, Tokens};
+        _ ->
+            expression(Tokens)
+    end,
+    Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after return value"),
+    {{return_stmt, Expr, T}, Tokens2};
 statement([#t{type=while}=T|Tokens]) ->
     Tokens1 = consume(lparen, Tokens, "Expect '(' after while statement"),
     {ConditionalExpr, Tokens2} = expression(Tokens1),

@@ -1,0 +1,9 @@
+fun count(n) {
+  while (n < 100) {
+    if (n == 3) return n; //Test returning from anywhere in the function!
+    print n;
+    n = n + 1;
+  }
+}
+
+count(1);

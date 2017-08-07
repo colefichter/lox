@@ -79,6 +79,13 @@ visit({expr_stmt, Expr, _}) ->
     visit(Expr),
     ok;
 
+% We'll use exceptions to return to the caller from any point in a function.
+visit({return_stmt, nil, T}) ->
+    throw({return, nil});
+visit({return_stmt, Expr, T}) ->
+    ReturnVal = visit(Expr),
+    throw({return, ReturnVal});
+
 %%%%%%%%%%%%%%%%%%%%%
 % Expressions
 %%%%%%%%%%%%%%%%%%%%%

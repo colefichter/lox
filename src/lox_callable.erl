@@ -21,9 +21,14 @@ invoke(Interpreter, {function_decl, _Name, Parameters, Body}, Arguments, T) ->
     define_all(Parameters, Arguments),
     % TODO: is hte execute_block function even needed?
     % Interpreter:execute_block()
-    Interpreter:visit(Body), % Body should be a block AST node.
+    ReturnVal = try Interpreter:visit(Body) of % Body should be a block AST node.
+        ok -> nil
+    catch
+        {return, Val} ->
+            Val
+    end,
     environment:unenclose(),
-    ok_what_return_value.
+    ReturnVal.
 
 fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T) when length(Parameters) =/= length(Arguments) ->
     Message = io_lib:format("Wrong number of arguments. Expected ~p but got ~p", [length(Parameters), length(Arguments)]),
