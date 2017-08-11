@@ -18,6 +18,12 @@ The parser supports prefix & postfix ++/-- ops, but so far the interpreter doesn
 
 Fun stuff to try adding:
 
+multiple return values:
+    fun getCoords() {
+        return 3, 4;
+    }
+    x, y = getCoords();
+
 unless keyword
 
 arrays/lists and basic list comprehensions

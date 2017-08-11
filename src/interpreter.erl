@@ -68,9 +68,9 @@ visit({while_stmt, ConditionalExpr, LoopBody, _T}=AST) ->
     end,
     ok;
 
-visit({print_stmt, E, _}) ->
-    V = visit(E),
-    pretty_print(V),
+visit({print_stmt, Expressions, _}) ->
+    Values = [visit(E) || E <- Expressions],
+    [pretty_print(V) || V <- Values],
     ok;
 
 visit({block, Statements}) ->
@@ -84,9 +84,9 @@ visit({expr_stmt, Expr, _}) ->
     ok;
 
 % We'll use exceptions to return to the caller from any point in a function.
-visit({return_stmt, nil, T}) ->
+visit({return_stmt, nil, _T}) ->
     throw({return, nil});
-visit({return_stmt, Expr, T}) ->
+visit({return_stmt, Expr, _T}) ->
     ReturnVal = visit(Expr),
     throw({return, ReturnVal});
 
