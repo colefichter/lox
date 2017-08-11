@@ -5,6 +5,8 @@
 -export([rgb/2, on_rgb/2]).
 -export([true/2, on_true/2]).
 
+-export([format/3]).
+
 -include("color.hrl").
 
 black(Text)      -> [color(?BLACK),      Text, reset()].
@@ -31,6 +33,12 @@ on_yellow(Text)  -> [color(?YELLOW_BG),  Text, reset_bg()].
 on_magenta(Text) -> [color(?MAGENTA_BG), Text, reset_bg()].
 on_cyan(Text)    -> [color(?CYAN_BG),    Text, reset_bg()].
 on_white(Text)   -> [color(?WHITE_BG),   Text, reset_bg()].
+
+
+format(Color, FormatString, Parameters) ->
+  Message = io_lib:format(FormatString, Parameters),
+  io:format("~s", [color:Color(Message)]).
+
 
 rgb(RGB, Text) ->
   [?ESC, ?RGB_FG, ?SEP, rgb_color(RGB), ?END, Text, reset()].

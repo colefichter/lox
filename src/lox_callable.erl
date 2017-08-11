@@ -8,26 +8,31 @@
 call(Interpreter, Callee, Arguments, T) ->
     invoke(Interpreter, Callee, Arguments, T).
 
-
 invoke(Interpreter, {native_function, {M, F, Parameters}}, Arguments, T) ->
     fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T),
-    erlang:apply(M, F, Arguments);
+    % This seems to work, though I don't completely understand how. It may cause strange bugs down the line.
+    PreviousScope = environment:create_new_scope(),
+    define_all(Parameters, Arguments),
+    ReturnVal = try erlang:apply(M, F, Arguments) of % Body should be a block AST node.
+        Any -> Any
+    after
+        environment:replace_scope(PreviousScope)
+    end,
+    ReturnVal;
 
 invoke(Interpreter, {function_decl, _Name, Parameters, Body}, Arguments, T) ->
     fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T),
-
-    % TODO: in the book, the env is always based on globals... is this right?
-    environment:enclose(),
+    % This seems to work, though I don't completely understand how. It may cause strange bugs down the line.
+    PreviousScope = environment:create_new_scope(),
     define_all(Parameters, Arguments),
-    % TODO: is hte execute_block function even needed?
-    % Interpreter:execute_block()
     ReturnVal = try Interpreter:visit(Body) of % Body should be a block AST node.
         ok -> nil
     catch
         {return, Val} ->
             Val
+    after
+        environment:replace_scope(PreviousScope)
     end,
-    environment:unenclose(),
     ReturnVal.
 
 fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T) when length(Parameters) =/= length(Arguments) ->

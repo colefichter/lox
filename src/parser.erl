@@ -92,6 +92,9 @@ initializer(Tokens) ->
     % {nil, Tokens}.
     ast(literal, nil, no_token, Tokens).
 
+statement([#t{type=dumpenv}=T|Tokens]) ->
+    Tokens1 = consume(semi_colon, Tokens, "Expect ';' after dumpenv statement"),
+    {{dumpenv, T#t.line}, Tokens1};
 
 statement([#t{type=for}=T|Tokens]) ->
 	Tokens1 = consume(lparen, Tokens, "Expect '(' after for statement"),

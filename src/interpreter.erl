@@ -40,6 +40,10 @@ interpret_statements([S|Statements]) ->
 % Statements
 %%%%%%%%%%%%%%%%%%%%%
 
+visit({dumpenv, Line}) ->
+    environment:dump(Line),
+    ok;
+
 visit({function_decl, Name, _Parameters, _Body}=F) ->
     environment:define(Name, F),
     ok;
