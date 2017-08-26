@@ -6,9 +6,39 @@
 load_all() ->
     load_all(native).
 
-load_all(LibraryMod) ->
-    % TODO: at some point we should use reflection to build this...
-    MFA = {LibraryMod, clock, []},
-    LoxCallable = {native_function, MFA},
-    environment:define("clock", LoxCallable), %Key must be a string for variable lookups to succeed!
+load_all(LibraryMod) -> % TODO: at some point we should use reflection to build this...
+    
+    %Key must be a string for variable lookups to succeed!
+    % environment:define("clock", {native_function, {LibraryMod, clock, []}}), 
+    % environment:define("str",   {native_function, {LibraryMod, str, [{id, "asdf"}]}}),
+
+    ExportedFunctions = LibraryMod:module_info(exports),
+    Functions = lists:filter(fun ({Name, _Arity}) -> Name =/= module_info end, ExportedFunctions),
+    [load(LibraryMod, EF) || EF <- Functions],
+
+
+    environment:dump(0),
+    
+
     ok.
+
+
+% UTILS
+load(LibraryMod, {Name, Arity}) ->
+    FakeParams = generate_fake_params(Arity),
+    Name1 = atom_to_list(Name),
+    environment:define(Name1, {native_function, {LibraryMod, Name, FakeParams}}).
+
+generate_fake_params(Count) ->
+    generate_fake_params(Count, []).
+
+generate_fake_params(0, Params) ->
+    % Don't need to revers here, because we create the params like [1|2|3|...]
+    % lists:reverse(Params);
+    Params;
+generate_fake_params(Count, Params) ->
+    NewParam = fake_param(Count),
+    generate_fake_params(Count - 1, [NewParam|Params]).
+
+% Doesn't seem like erlang can actually provide parameter names using erlang:fun_info(), so just make fake names
+fake_param(Number) -> {id, "Parameter" ++ integer_to_list(Number)}.
