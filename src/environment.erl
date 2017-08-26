@@ -2,7 +2,7 @@
 
 -export([current/0, new/0, define/2, assign/3, get/2, enclose/0, unenclose/0]).
 
--export([global/0, create_new_scope/0, replace_scope/1, dump/1]).
+-export([global/0, create_new_scope/0, create_new_scope/1, replace_scope/1, dump/1]).
 
 -include("records.hrl").
 
@@ -20,6 +20,10 @@ global({_Env, Enclosed}) ->
 create_new_scope() ->
 	Global = global(),
 	New = {dict:new(), Global}, % enclose the global scope
+	put(env, New).
+create_new_scope(Closure) ->
+	% Global = global(),
+	New = {dict:new(), Closure}, % enclose the global scope
 	put(env, New).
 
 % When ending a function call, we need to get the globals from the nested scope

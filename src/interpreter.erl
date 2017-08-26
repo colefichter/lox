@@ -20,7 +20,9 @@ interpret(BinOrSourceCode) ->
         {parse_error, Message, Line, Literal} ->
             ?MODULE:error(parse_error, Line, Literal, Message);
         {parse_error, Message} ->
-            ?MODULE:error(parse_error, Message)
+            ?MODULE:error(parse_error, Message);
+         error:Reason ->
+            ?MODULE:error(parser_crashed, Reason)
     end,
     ok.
 
@@ -29,9 +31,13 @@ interpret_statements([S|Statements]) ->
     try visit(S) of
         ok -> ok
     catch
-        {runtime_error, Type, Message, Line, Literal} ->
+        {runtime_error, Type, Message, Line, Literal} ->            
+            ?MODULE:error(Type, Line, Literal, Message),
+            io:format("  ~s:~p~n", [color:cyan("STATEMENT"), S]);
+        error:Reason ->
+            ?MODULE:error(interpreter_crashed, Reason),
             io:format("  ~s:~p~n", [color:cyan("STATEMENT"), S]),
-            ?MODULE:error(Type, Line, Literal, Message)
+            print_stacktrace()
     end,
     interpret_statements(Statements).
 
@@ -44,8 +50,10 @@ visit({dumpenv, Line}) ->
     environment:dump(Line),
     ok;
 
-visit({function_decl, Name, _Parameters, _Body}=F) ->
-    environment:define(Name, F),
+visit({function_decl, Name, Parameters, Body}) ->
+    Closure = environment:current(),
+    NewF = {function_decl, Name, Parameters, Body, Closure},
+    environment:define(Name, NewF),
     ok;
 
 % A statement declaring a new variable (not to be confused with a variable expression, which looks up the value of a variable)
@@ -68,14 +76,21 @@ visit({while_stmt, ConditionalExpr, LoopBody, _T}=AST) ->
     end,
     ok;
 
-visit({print_stmt, Expressions, _}) ->
-    Values = [visit(E) || E <- Expressions],
-    [pretty_print(V) || V <- Values],
+% Multiple print expressions isn't working correctly from inside a function:
+%    fun x() { print 1; } //crashes!
+% visit({print_stmt, Expressions, _}) ->
+%     Values = [visit(E) || E <- Expressions],
+%     [pretty_print(V) || V <- Values],
+%     ok;
+visit({print_stmt, E, _}) ->
+    V = visit(E),
+    pretty_print(V),
     ok;
 
 visit({block, Statements}) ->
     environment:enclose(),
-    [visit(S) || S <- Statements],  %TODO: try/catch here? What if a statement throws an error?
+    % [visit(S) || S <- Statements],  %TODO: try/catch here? What if a statement throws an error?
+    interpret_statements(Statements),
     environment:unenclose(),
     ok;
 
@@ -281,3 +296,19 @@ pretty_print(V) when is_list(V) ->
     io:format("~s~n", [V]);
 pretty_print(V) ->
     io:format("~p~n", [V]).
+
+
+print_stacktrace() ->
+    io:format("*** BEGIN STACKTRACE ***~n"),
+    print_stacktrace(erlang:get_stacktrace()).
+
+print_stacktrace([]) ->
+    io:format("***  END STACKTRACE  ***~n");
+print_stacktrace([H|T]) ->
+    print_stackitem(H),
+    print_stacktrace(T).
+
+print_stackitem({M, F, A, L}) when is_integer(A) ->
+    io:format("~p ~p/~p~n  ~p~n", [M, F, A, L]);
+print_stackitem({M, F, A, L}) when is_list(A) ->
+    io:format("~p ~p~n  ARGS: ~p~n  ~p~n", [M, F, A, L]).

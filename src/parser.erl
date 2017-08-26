@@ -125,12 +125,12 @@ statement([#t{type='if'}=T|Tokens]) ->
     end,
     {{if_stmt, ConditionalExpr, ThenBranch, ElseBranch, T}, Tokens5};
 statement([#t{type=print}=T|Tokens]) ->
-    % {Expr, Tokens1} = expression(Tokens),
-    % Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement"),
-    % {{print_stmt, Expr, T}, Tokens2};
-    {Expressions, Tokens1} = print_while(Tokens),
+    {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement"),
-    {{print_stmt, Expressions, T}, Tokens2};
+    {{print_stmt, Expr, T}, Tokens2};
+    % {Expressions, Tokens1} = print_while(Tokens),
+    % Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after print statement"),
+    % {{print_stmt, Expressions, T}, Tokens2};
 statement([#t{type=return}=T|Tokens]) ->
     [Next|_] = Tokens,
     {Expr, Tokens1} = case Next of
@@ -154,15 +154,17 @@ statement(Tokens) ->
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression statement"),
     {{expr_stmt, Expr, unknown_token}, Tokens2}.
 
-print_while(Tokens) ->
-    print_while([], Tokens).
-print_while(Expressions, [#t{type=comma}|Tokens]) ->
-    print_while(Expressions, Tokens);
-print_while(Expressions, [#t{type=semi_colon}]=Tokens) ->
-    {lists:reverse(Expressions), Tokens};
-print_while(Expressions, Tokens) ->
-    {Expr, Tokens1} = expression(Tokens),
-    print_while([Expr|Expressions], Tokens1).
+% Multiple print expressions isn't working correctly from inside a function:
+%    fun x() { print 1; } //crashes!
+% print_while(Tokens) ->
+%     print_while([], Tokens).
+% print_while(Expressions, [#t{type=comma}|Tokens]) ->
+%     print_while(Expressions, Tokens);
+% print_while(Expressions, [#t{type=semi_colon}]=Tokens) ->
+%     {lists:reverse(Expressions), Tokens};
+% print_while(Expressions, Tokens) ->
+%     {Expr, Tokens1} = expression(Tokens),
+%     print_while([Expr|Expressions], Tokens1).
 
 for_initializer([#t{type=semi_colon}|Tokens]) ->
 	{nil, Tokens};

@@ -20,10 +20,10 @@ invoke(Interpreter, {native_function, {M, F, Parameters}}, Arguments, T) ->
     end,
     ReturnVal;
 
-invoke(Interpreter, {function_decl, _Name, Parameters, Body}, Arguments, T) ->
+invoke(Interpreter, {function_decl, _Name, Parameters, Body, Closure}, Arguments, T) ->
     fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T),
     % This seems to work, though I don't completely understand how. It may cause strange bugs down the line.
-    PreviousScope = environment:create_new_scope(),
+    PreviousScope = environment:create_new_scope(Closure),
     define_all(Parameters, Arguments),
     ReturnVal = try Interpreter:visit(Body) of % Body should be a block AST node.
         ok -> nil
