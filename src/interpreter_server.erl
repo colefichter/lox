@@ -20,7 +20,7 @@ repl() -> gen_server:cast(?SERVER, {repl}).
 % gen_server callbacks
 init([]) ->     
     repl(), % Send the first repl message to get the loop going.
-    Env = environment:new(), % Create the global env. This will stay alive as long as the interpreter/REPL is alive.
+    {ok, Env} = interpreter:init(), % Create the global env. This will stay alive as long as the interpreter/REPL is alive.
     {ok, Env}.
 handle_call(_Request, _From, State) -> {reply, {error, unknown_call}, State}.
 handle_cast({repl}, Env) ->

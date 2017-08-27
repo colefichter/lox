@@ -1,14 +1,14 @@
 -module(scanner).
 
 % Client API
--export([lex/1, lex_file/1]).
+-export([lex/1]).
 
 -include("records.hrl").
 
 
-lex_file(File) ->
-    {ok, Bin} = file:read_file(File),
-    lex(Bin).
+% lex_file(File) ->
+%     {ok, Bin} = file:read_file(File),
+%     lex(Bin).
 
 lex(Bin) when is_binary(Bin) -> 
     start(),
@@ -81,6 +81,9 @@ lex(<<"super", B/binary>>, Tokens) -> continue(B, "super", super, Tokens);
 lex(<<"this",  B/binary>>, Tokens) -> continue(B, "this", this, Tokens);
 lex(<<"true",  B/binary>>, Tokens) -> continue(B, "true", true, Tokens);
 lex(<<"while", B/binary>>, Tokens) -> continue(B, "while", while, Tokens);
+
+% Just for debugging stuff:
+lex(<<"dumpenv", B/binary>>, Tokens) -> continue(B, "dumpenv", dumpenv, Tokens);
 
 lex(<<D:1/binary, B/binary>>, Tokens) when (D >= <<$0>>) and (D =< <<$9>>) ->
     {N, B1} = number(list_to_binary([D, B])),

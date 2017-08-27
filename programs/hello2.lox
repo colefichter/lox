@@ -1,0 +1,5 @@
+fun hello(Name) {
+    print "Hello, " + Name;
+}
+
+hello("Cole");

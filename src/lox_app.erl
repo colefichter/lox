@@ -13,10 +13,14 @@ run_file([Name]) when is_list(Name) ->
     run(Name).
 
 run(Name) ->
-    % io:format("Name: ~s", [format_name(Name)]).
     Path = format_name(Name),
-    interpreter:interpret_file(Path).
-
+    case file:read_file(Path) of
+        {ok, Bin} ->
+            {ok, Env} = interpreter:init(), % Create the global env. This will stay alive as long as the interpreter/REPL is alive.
+            interpreter:interpret(Bin);
+        _ ->
+            io:format("File not found: ~p~n", [Path])
+    end.
 
 %% ===================================================================
 %% Application callbacks

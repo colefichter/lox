@@ -1,0 +1,17 @@
+var x = "x";
+
+dumpenv;
+
+fun foo() {
+    x = "It's wrong! Why did it change?";
+    dumpenv;
+}
+
+foo();
+dumpenv;
+
+if (x == "x") {
+    print "X did not change! Something is broken.";
+} else {
+    print "X was updated correctly.";
+}

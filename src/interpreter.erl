@@ -1,33 +1,43 @@
 -module(interpreter).
 
--export([interpret/1, interpret_file/1, visit/1, error/2, error/4, rte/3]).
+-export([init/0, interpret/1, visit/1, error/2, error/4, warn/4, rte/3]).
 
 -include("records.hrl").
 
 
-interpret_file(Name) ->
+init() ->
     environment:new(),
-    % TODO: handle lexing errors:
-    {ok, Tokens} = scanner:lex_file(Name),
-    % TODO: handle parsing errors:
-    {ok, Statements} = parser:parse(Tokens),    
-    interpret_statements(Statements).
+    loader:load_all(), % These end up in the global scope.
+    Env = environment:current(),
+    {ok, Env}.
 
-interpret(SourceCode) ->
-    % TODO: handle lexing errors:
-    {ok, Tokens} = scanner:lex(SourceCode),
-    % TODO: handle parsing errors:
-    {ok, Statements} = parser:parse(Tokens),    
-    interpret_statements(Statements).
+interpret(BinOrSourceCode) ->
+    {ok, Tokens} = scanner:lex(BinOrSourceCode),
+    try parser:parse(Tokens) of
+        {ok, Statements} ->
+            interpret_statements(Statements)
+    catch
+        {parse_error, Message, Line, Literal} ->
+            ?MODULE:error(parse_error, Line, Literal, Message);
+        {parse_error, Message} ->
+            ?MODULE:error(parse_error, Message);
+         error:Reason ->
+            ?MODULE:error(parser_crashed, Reason)
+    end,
+    ok.
 
 interpret_statements([]) -> ok;
 interpret_statements([S|Statements]) ->
     try visit(S) of
         ok -> ok
     catch
-        {runtime_error, Type, Message, Line, Literal} ->
+        {runtime_error, Type, Message, Line, Literal} ->            
+            ?MODULE:error(Type, Line, Literal, Message),
+            io:format("  ~s:~p~n", [color:cyan("STATEMENT"), S]);
+        error:Reason ->
+            ?MODULE:error(interpreter_crashed, Reason),
             io:format("  ~s:~p~n", [color:cyan("STATEMENT"), S]),
-            error(Type, Line, Literal, Message)
+            print_stacktrace()
     end,
     interpret_statements(Statements).
 
@@ -35,6 +45,16 @@ interpret_statements([S|Statements]) ->
 %%%%%%%%%%%%%%%%%%%%%
 % Statements
 %%%%%%%%%%%%%%%%%%%%%
+
+visit({dumpenv, Line}) ->
+    environment:dump(Line),
+    ok;
+
+visit({function_decl, Name, Parameters, Body}) ->
+    Closure = environment:current(),
+    NewF = {function_decl, Name, Parameters, Body, Closure},
+    environment:define(Name, NewF),
+    ok;
 
 % A statement declaring a new variable (not to be confused with a variable expression, which looks up the value of a variable)
 visit({var_stmt, Id, InitilizerExpr, _T}) -> 
@@ -56,6 +76,12 @@ visit({while_stmt, ConditionalExpr, LoopBody, _T}=AST) ->
     end,
     ok;
 
+% Multiple print expressions isn't working correctly from inside a function:
+%    fun x() { print 1; } //crashes!
+% visit({print_stmt, Expressions, _}) ->
+%     Values = [visit(E) || E <- Expressions],
+%     [pretty_print(V) || V <- Values],
+%     ok;
 visit({print_stmt, E, _}) ->
     V = visit(E),
     pretty_print(V),
@@ -63,7 +89,8 @@ visit({print_stmt, E, _}) ->
 
 visit({block, Statements}) ->
     environment:enclose(),
-    [visit(S) || S <- Statements],  %TODO: try/catch here? What if a statement throws an error?
+    % [visit(S) || S <- Statements],  %TODO: try/catch here? What if a statement throws an error?
+    interpret_statements(Statements),
     environment:unenclose(),
     ok;
 
@@ -71,9 +98,23 @@ visit({expr_stmt, Expr, _}) ->
     visit(Expr),
     ok;
 
+% We'll use exceptions to return to the caller from any point in a function.
+visit({return_stmt, nil, _T}) ->
+    throw({return, nil});
+visit({return_stmt, Expr, _T}) ->
+    ReturnVal = visit(Expr),
+    throw({return, ReturnVal});
+
 %%%%%%%%%%%%%%%%%%%%%
 % Expressions
 %%%%%%%%%%%%%%%%%%%%%
+
+% This is the invocation of a function
+visit({call, CalleeExpr, Arguments, T}) ->
+    Callee = visit(CalleeExpr),
+    % TODO: how to check the type of the callee? See http://www.craftinginterpreters.com/functions.html#call-type-errors
+    ArgumentVals = [visit(A) || A <- Arguments],
+    lox_callable:call(?MODULE, Callee, ArgumentVals, T);
 
 % Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
 visit({assign, Name, Value, T}) ->
@@ -155,22 +196,22 @@ visit({prefix, Op, RExp, T}) ->
         plus_plus ->
             RVal + 1
     end;
-visit({postfix, LExp, Op, T}) ->
-    LVal = visit(LExp),
-    check_number_operand(Op, LVal, T),
-    case Op of
-        minus_minus ->
-            LVal - 1;
-        plus_plus ->
-            LVal + 1
-    end;
+% visit({postfix, LExp, Op, T}) ->
+%     LVal = visit(LExp),
+%     check_number_operand(Op, LVal, T),
+%     case Op of
+%         minus_minus ->
+%             LVal - 1;
+%         plus_plus ->
+%             LVal + 1
+%     end;
 
 
 visit({grouping, E, _}) ->
     visit(E);
 
 visit({variable, Id, T}) -> % A variable expression (that is, lookup the value of the variable)
-    Val = environment:get(Id, T),    
+    Val = environment:get(Id, T),   
     Val;
 
 visit({literal, Val, _}) -> Val.   
@@ -234,15 +275,19 @@ rte(Type, Message, T) ->
 
 
 % UTILS - TODO: move out of this module. The it doesn't make sense for the parser to call interpreter:error().
-error(Line, Message) -> 
+error(Line, Message) when is_integer(Line) -> 
     Out = io_lib:format("~p| ~s at unknown location.~n", [Line, Message]),
+    highlight(Out);
+error(Type, Message) -> 
+    Out = io_lib:format("(~p) ~s at unknown location.~n", [Type, Message]),
     highlight(Out).
-% error(Line, Literal, Message) -> 
-%     Out = io_lib:format("~p| ~s near ~p.~n", [Line, Message, Literal]),
-%     highlight(Out).
 error(Type, Line, Literal, Message) ->
     Out = io_lib:format("~p| (~p) ~s near ~p.~n", [Line, Type, Message, Literal]),
     highlight(Out).
+
+warn(Type, Line, Literal, Message) ->
+    Out = io_lib:format("~p| (~p) ~s near ~p.~n", [Line, Type, Message, Literal]),
+    io:format("~s", [color:yellow(Out)]).
 
 highlight(Message) -> io:format("~s", [color:red(Message)]).
 
@@ -251,3 +296,19 @@ pretty_print(V) when is_list(V) ->
     io:format("~s~n", [V]);
 pretty_print(V) ->
     io:format("~p~n", [V]).
+
+
+print_stacktrace() ->
+    io:format("*** BEGIN STACKTRACE ***~n"),
+    print_stacktrace(erlang:get_stacktrace()).
+
+print_stacktrace([]) ->
+    io:format("***  END STACKTRACE  ***~n");
+print_stacktrace([H|T]) ->
+    print_stackitem(H),
+    print_stacktrace(T).
+
+print_stackitem({M, F, A, L}) when is_integer(A) ->
+    io:format("~p ~p/~p~n  ~p~n", [M, F, A, L]);
+print_stackitem({M, F, A, L}) when is_list(A) ->
+    io:format("~p ~p~n  ARGS: ~p~n  ~p~n", [M, F, A, L]).

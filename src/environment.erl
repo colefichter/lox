@@ -1,8 +1,52 @@
 -module(environment).
 
--export([new/0, define/2, assign/3, get/2, enclose/0, unenclose/0]).
+-export([current/0, new/0, define/2, assign/3, get/2, enclose/0, unenclose/0]).
+
+-export([global/0, create_new_scope/0, create_new_scope/1, replace_scope/1, dump/1]).
 
 -include("records.hrl").
+
+current() -> get(env).
+
+global() ->
+	global(current()).
+global({Env, global}) ->
+	{Env, global};
+global({_Env, Enclosed}) ->
+	global(Enclosed).
+
+
+% Returns the previous scope for restoral later on...
+create_new_scope() ->
+	Global = global(),
+	New = {dict:new(), Global}, % enclose the global scope
+	put(env, New).
+create_new_scope(Closure) ->
+	% Global = global(),
+	New = {dict:new(), Closure}, % enclose the global scope
+	put(env, New).
+
+% When ending a function call, we need to get the globals from the nested scope
+% and place them into the scope that we're reverting back to (NewEnv). This way, if a global
+% was updated in a function call, we don't lose the value when the function returns.
+replace_scope(NewEnv) ->
+	{CurrentGlobalVars, global} = global(),
+	NewEnv1 = replace_global(CurrentGlobalVars, NewEnv),
+	put(env, NewEnv1),
+	ok.
+
+
+replace_global(NewDict, {_OldDict, global}) ->
+	{NewDict, global};
+replace_global(NewDict, {NestedDict, Enclosed}) ->
+	NewEnclosed = replace_global(NewDict, Enclosed),
+	{NestedDict, NewEnclosed}.
+
+
+
+
+dump(LineNumber) ->
+	color:format(magenta, "~p|CURRENT ENVIRONMENT: ~p~n", [LineNumber, current()]).
 
 % Create a new environment to hold state
 new() -> 
@@ -12,8 +56,8 @@ new() ->
 
 enclose() ->
 	Enclosed = get(env),
-	New = {dict:new(), Enclosed},
-	put(env, New),
+	NewEnv = {dict:new(), Enclosed},
+	put(env, NewEnv),
 	ok.
 
 unenclose() ->
