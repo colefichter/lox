@@ -1,4 +1,4 @@
--module(lox_app).
+    -module(lox_app).
 
 -behaviour(application).
 
@@ -16,7 +16,7 @@ run(Name) ->
     Path = format_name(Name),
     case file:read_file(Path) of
         {ok, Bin} ->
-            {ok, Env} = interpreter:init(), % Create the global env. This will stay alive as long as the interpreter/REPL is alive.
+            {ok, _Env} = interpreter:init(), % Create the global env. This will stay alive as long as the interpreter/REPL is alive.
             interpreter:interpret(Bin);
         _ ->
             io:format("File not found: ~p~n", [Path])
