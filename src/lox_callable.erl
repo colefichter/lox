@@ -10,8 +10,8 @@ call(Interpreter, Callee, Arguments, T) ->
 
 invoke(Interpreter, {native_function, {M, F, Parameters}}, Arguments, T) ->
     fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T),
-    % This seems to work, though I don't completely understand how. It may cause strange bugs down the line.
-    PreviousScope = environment:create_new_scope(),
+    % Native functions are always declared in the global scope:
+    PreviousScope = environment:create_new_scope(T),
     define_all(Parameters, Arguments),
     ReturnVal = try erlang:apply(M, F, Arguments) of % Body should be a block AST node.
         Any -> Any
@@ -22,8 +22,8 @@ invoke(Interpreter, {native_function, {M, F, Parameters}}, Arguments, T) ->
 
 invoke(Interpreter, {function_decl, _Name, Parameters, Body, Closure}, Arguments, T) ->
     fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T),
-    % This seems to work, though I don't completely understand how. It may cause strange bugs down the line.
-    PreviousScope = environment:create_new_scope(Closure),
+    % Programmer-defined functions run in the scope they are declared in:
+    PreviousScope = environment:create_new_scope(Closure, T),
     define_all(Parameters, Arguments),
     ReturnVal = try Interpreter:visit(Body) of % Body should be a block AST node.
         ok -> nil

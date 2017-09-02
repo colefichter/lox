@@ -1,72 +1,30 @@
 -module(environment).
 
--export([current/0, new/0, define/2, assign/3, get/2, enclose/0, unenclose/0]).
+-export([init/0, current/0, define/2, assign/3, get/2, enclose/0, unenclose/0]).
 
--export([global/0, create_new_scope/0, create_new_scope/1, replace_scope/1, dump/1]).
+-export([create_new_scope/1, create_new_scope/2, replace_scope/1, dump/1]).
 
 -include("records.hrl").
 
+init() ->
+	put(env, [start_dict()]),
+	ok.
+
+% Create a new environment based on the globals
+create_new_scope(_Token) ->
+	PreviousEnv = current(),
+	put(env, [global()]),
+	PreviousEnv.
+
+% Create a new environment based on a given scope
+create_new_scope(Closure, _Token) ->
+	PreviousEnv = current(),
+	put(env, [start_dict()|Closure]),
+	PreviousEnv.
+
+replace_scope(Env) -> put(env, Env).
+
 current() -> get(env).
-
-global() ->
-	global(current()).
-global({Env, global}) ->
-	{Env, global};
-global({_Env, Enclosed}) ->
-	global(Enclosed).
-
-
-% Returns the previous scope for restoral later on...
-create_new_scope() ->
-	Global = global(),
-	New = {dict:new(), Global}, % enclose the global scope
-	put(env, New).
-create_new_scope(Closure) ->
-	% Global = global(),
-	New = {dict:new(), Closure}, % enclose the global scope
-	put(env, New).
-
-% When ending a function call, we need to get the globals from the nested scope
-% and place them into the scope that we're reverting back to (NewEnv). This way, if a global
-% was updated in a function call, we don't lose the value when the function returns.
-replace_scope(NewEnv) ->
-	{CurrentGlobalVars, global} = global(),
-	NewEnv1 = replace_global(CurrentGlobalVars, NewEnv),
-	put(env, NewEnv1),
-	ok.
-
-
-replace_global(NewDict, {_OldDict, global}) ->
-	{NewDict, global};
-replace_global(NewDict, {NestedDict, Enclosed}) ->
-	NewEnclosed = replace_global(NewDict, Enclosed),
-	{NestedDict, NewEnclosed}.
-
-
-
-
-dump(LineNumber) ->
-	color:format(magenta, "~p|CURRENT ENVIRONMENT: ~p~n", [LineNumber, current()]).
-
-% Create a new environment to hold state
-new() -> 
-	Env = {dict:new(), global},
-	put(env, {dict:new(), global}),
-	Env.
-
-enclose() ->
-	Enclosed = get(env),
-	NewEnv = {dict:new(), Enclosed},
-	put(env, NewEnv),
-	ok.
-
-unenclose() ->
-	case get(env) of
-		{_, global} -> ok;
-		{_Env, Enclosed} ->
-			put(env, Enclosed)
-	end,
-	ok.
 
 % Add a new variable to the environment
 define(Name, Value) ->
@@ -75,50 +33,62 @@ define(Name, Value) ->
 	%	 print a; // "before".
 	%	 var a = "after";
 	%	 print a; // "after".
-	{Env, Enclosed} = get(env), % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
-	Env1 = dict:store(Name, Value, Env),
-	put(env, {Env1, Enclosed}),
+	[Pid|_] = current(),
+	ok = env_dict:put(Pid, Name, Value),
 	ok.
 
+% Assign a value to an existing variable
 assign(Name, Value, Token) ->
-	EnvTuple = get(env), % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
-	NewEnvTuple = try_assign(Name, Value, EnvTuple, Token),
-	put(env, NewEnvTuple),
+	try_assign(Name, Value, current(), Token),
 	ok.
 
-try_assign(Name, Value, {Env, global}, Token) ->
-	case dict:is_key(Name, Env) of
-		true -> 
-			{dict:store(Name, Value, Env), global};
-		false ->
-			undefined(Token)
-	end;
+% Lookup the value of an existing variable
+get(Name, Token) ->
+	try_get(Name, current(), Token).
 
-try_assign(Name, Value, {Env, Enclosed}, Token) ->
-	case dict:is_key(Name, Env) of
-		true -> 
-			{dict:store(Name, Value, Env), Enclosed};
-		false ->
-			{Env, try_assign(Name, Value, Enclosed, Token)}
+enclose() ->
+	Enclosed = current(),
+	{ok, Pid} = env_dict:start(),
+	put(env, [Pid|Enclosed]),
+	ok.
+
+unenclose() ->
+	case get(env) of
+		[_Pid] -> ok;
+		[_Pid|Enclosed] -> put(env, Enclosed)
+	end,
+	ok.
+
+% Helper to debug the current interpreter state
+dump(LineNumber) ->
+	color:format(magenta, "~p|CURRENT ENVIRONMENT: ~n", [LineNumber]),
+	[color:format(magenta, "  ~p~n", [env_dict:all(Pid)]) || Pid <- current()].
+
+
+% UTILS
+start_dict() ->
+	{ok, Pid} = env_dict:start(),
+	Pid.
+
+try_assign(_Name, _Value, [], Token) ->
+	undefined(Token);
+try_assign(Name, Value, [Pid|Enclosed], Token) ->
+	case env_dict:get(Pid, Name) of
+		{ok, _CurrentValue} -> 
+			env_dict:put(Pid, Name, Value);
+		error ->
+			try_assign(Name, Value, Enclosed, Token)
 	end.
 
-% Expects a TOKEN in addition to the literal name of the variable to lookup. This is just for error reporting.
-get(Name, Token) ->
-	EnvTuple = get(env), % TODO: replace the process dictionary with something better? It's not needed often, so why pass it to every visit method?
-	try_get(Name, EnvTuple, Token).
-
-try_get(Name, {Env, global}, Token) ->
-	case dict:find(Name, Env) of
-		{ok, Value} -> Value;
-		error ->
-			undefined(Token)
-	end;
-try_get(Name, {Env, Enclosed}, Token) ->
-	case dict:find(Name, Env) of
+try_get(_Name, [], Token) ->
+	undefined(Token);
+try_get(Name, [Pid|Enclosed], Token) ->
+	case env_dict:get(Pid, Name) of
 		{ok, Value} -> Value;
 		error -> 
 			try_get(Name, Enclosed, Token)
 	end.
 
-undefined(Token) ->
-	interpreter:rte(undefined_variable, "Undefined variable", Token).
+undefined(Token) -> interpreter:rte(undefined_variable, "Undefined variable", Token).
+
+global() -> lists:last(current()).

@@ -1,0 +1,14 @@
+var i = 0;
+
+fun foo() {
+    i = i + 1;
+}
+
+fun bar() {
+    i = i + 1;
+}
+
+foo();
+bar();
+
+print "i should be 2. It is " + str(i);

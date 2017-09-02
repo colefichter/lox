@@ -1,0 +1,6 @@
+fun hello(First, Last) {
+    print "Hello, " + First + " " + Last;
+}
+
+hello("Bilbo", "Baggins");
+dumpenv;
