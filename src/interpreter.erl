@@ -6,7 +6,7 @@
 
 
 init() ->
-    environment:new(),
+    ok = environment:init(),
     loader:load_all(), % These end up in the global scope.
     Env = environment:current(),
     {ok, Env}.

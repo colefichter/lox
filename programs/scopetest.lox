@@ -1,14 +1,14 @@
 var x = "x";
 
-dumpenv;
+//dumpenv;
 
 fun foo() {
-    x = "It's wrong! Why did it change?";
-    dumpenv;
+    x = "Something else...";
+    //dumpenv;
 }
 
 foo();
-dumpenv;
+//dumpenv;
 
 if (x == "x") {
     print "X did not change! Something is broken.";

@@ -64,7 +64,7 @@ function(Kind, Tokens) ->
 function_parameters(Tokens) ->
     function_parameters([], Tokens).
 function_parameters(Parameters, [#t{type=rparen}=_T|Tokens]) ->
-    {Parameters, Tokens};
+    {lists:reverse(Parameters), Tokens};
 function_parameters(Parameters, [#t{type=comma}|Tokens]) ->
     function_parameters(Parameters, Tokens);
 function_parameters(Parameters, Tokens) ->
