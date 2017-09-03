@@ -29,7 +29,9 @@ interpret(BinOrSourceCode) ->
 interpret_statements([]) -> ok;
 interpret_statements([S|Statements]) ->
     try visit(S) of
-        ok -> ok
+        ok -> ok;
+        % Some statements, like assignment, will return an actual value. Ignore it.
+        _Any -> ok
     catch
         {runtime_error, Type, Message, Line, Literal} ->            
             ?MODULE:error(Type, Line, Literal, Message),
@@ -275,6 +277,9 @@ rte(Type, Message, T) ->
 
 
 % UTILS - TODO: move out of this module. The it doesn't make sense for the parser to call interpreter:error().
+error(interpreter_crashed, Reason) ->
+    Out = io_lib:format("INTERPRETER CRASHED| ~p at unknown location.~n", [Reason]),
+    highlight(Out);
 error(Line, Message) when is_integer(Line) -> 
     Out = io_lib:format("~p| ~s at unknown location.~n", [Line, Message]),
     highlight(Out);
