@@ -8,17 +8,11 @@
 -include("records.hrl").
 
 % Client API
-parse(Tokens) -> {ok, init(Tokens)}.
+parse(Tokens) -> {ok, program(Tokens)}.
 
 parse_file(File) ->
     {ok, Tokens} = scanner:lex_file(File),
     parse(Tokens).
-
-
-% TODO: should we just get rid of the eof token? Empty list indicates EOF, no?
-init(Tokens) when is_list(Tokens) ->
-    Tokens1 = Tokens -- [eof],
-    program(Tokens1).
 
 
 program(Tokens) ->

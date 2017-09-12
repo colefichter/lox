@@ -17,7 +17,7 @@ lex(Input) when is_list(Input) -> lex(list_to_binary(Input)).
 
 
 %Internal API
-lex(<<>>, Tokens) -> {ok, lists:reverse([eof|Tokens])};
+lex(<<>>, Tokens) -> {ok, lists:reverse(Tokens)};
 
 lex(<<"//",    B/binary>>, Tokens) -> 
     {_, B1} = comment(B),
