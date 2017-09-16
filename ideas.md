@@ -18,6 +18,10 @@ The parser supports prefix & postfix ++/-- ops, but so far the interpreter doesn
 
 Fun stuff to try adding:
 
+lists & list comprehensions
+
+immutable variables: val x = 123;
+
 multiple return values:
     fun getCoords() {
         return 3, 4;
