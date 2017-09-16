@@ -10,4 +10,3 @@ rel/example_project
 .rebar
 _build
 _build/*
-data/
