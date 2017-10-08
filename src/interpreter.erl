@@ -15,6 +15,7 @@ interpret(BinOrSourceCode) ->
     {ok, Tokens} = scanner:lex(BinOrSourceCode),
     try parser:parse(Tokens) of
         {ok, Statements} ->
+            ok = resolver:start(Statements),
             interpret_statements(Statements)
     catch
         {parse_error, Message, Line, Literal} ->
@@ -84,9 +85,9 @@ visit({while_stmt, ConditionalExpr, LoopBody, _T}=AST) ->
 %     Values = [visit(E) || E <- Expressions],
 %     [pretty_print(V) || V <- Values],
 %     ok;
-visit({print_stmt, E, _}) ->
-    V = visit(E),
-    pretty_print(V),
+visit({print_stmt, Expr, _}) ->
+    Val = visit(Expr),
+    pretty_print(Val),
     ok;
 
 visit({block, Statements}) ->
@@ -119,9 +120,9 @@ visit({call, CalleeExpr, Arguments, T}) ->
     lox_callable:call(?MODULE, Callee, ArgumentVals, T);
 
 % Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
-visit({assign, Name, Value, T}) ->
+visit({assign, R, Name, Value, T}) ->
     Val = visit(Value),
-    environment:assign(Name, Val, T),
+    environment:assign(R, Name, Val, T),
     % Return the assigned value so that the following works:
     %  var a = 1;
     %  print a = 2; //"2"
@@ -212,8 +213,9 @@ visit({prefix, Op, RExp, T}) ->
 visit({grouping, E, _}) ->
     visit(E);
 
-visit({variable, Id, T}) -> % A variable expression (that is, lookup the value of the variable)
-    Val = environment:get(Id, T),   
+visit({variable, R, Id, T}) -> % A variable expression (that is, lookup the value of the variable)
+    % Val = environment:get(Id, T),
+    Val = environment:get(R, Id, T),   
     Val;
 
 visit({literal, Val, _}) -> Val.   

@@ -1,6 +1,6 @@
 -module(environment).
 
--export([init/0, current/0, define/2, assign/3, get/2, enclose/0, unenclose/0]).
+-export([init/0, current/0, define/2, assign/3, assign/4, get/2, get/3, enclose/0, unenclose/0, resolve/2]).
 
 -export([create_new_scope/1, create_new_scope/2, replace_scope/1, dump/1]).
 
@@ -42,9 +42,37 @@ assign(Name, Value, Token) ->
 	try_assign(Name, Value, current(), Token),
 	ok.
 
+assign(R, Name, Value, _Token) when is_reference(R) ->
+	Globals = global(),
+	case env_dict:get(Globals, R) of
+		{ok, Distance} -> 
+			Pid = lists:nth(Distance, current()),
+			env_dict:put(Pid, Name, Value); % Distance tells us exactly where to store value
+		error ->
+			env_dict:put(Globals, Name, Value) % If we didn't find a distance, the thing should be global
+	end.
+
+resolve(R, Distance) when is_reference(R) ->
+	Globals = global(),
+	ok = env_dict:put(Globals, R, Distance),
+	ok.
+
 % Lookup the value of an existing variable
 get(Name, Token) ->
 	try_get(Name, current(), Token).
+
+
+% Lookup the value of an existing variable, using the distance from the resolver (static analysis)
+get(R, Name, Token) ->
+	Globals = global(),
+	case env_dict:get(Globals, R) of
+		{ok, Distance} -> 
+			Pid = lists:nth(Distance, current()),
+			{ok, Value} = env_dict:get(Pid, Name), % Distance tells us exactly where to find value
+			Value;
+		error ->
+			try_get(Name, [Globals], Token) % If we didn't find a distance, the thing should be global
+	end.
 
 enclose() ->
 	Enclosed = current(),

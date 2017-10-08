@@ -210,9 +210,9 @@ assignment_if(AssignExpr, [#t{type=equal}=T|Tokens]) ->
     Equals = T, % Just to match the code in the book...
     {Value, Tokens1} = assignment(Tokens), % Value from the right side of the "=".
     case AssignExpr of % AssignExpr is the left side of the "=".
-        {variable, Id, T1} ->
+        {variable, R, Id, T1} ->
             Name = Id, % Just to match the code in the book...
-            {{assign, Name, Value, T1}, Tokens1}; % TODO: is T1 the correct token to send back?
+            {{assign, erlang:make_ref(), Name, Value, T1}, Tokens1}; % TODO: is T1 the correct token to send back?
         {_any, _any, _T} ->
             % Is Equals the correct token to use? Should it be the _T in the pattern?
             pe("Invalid assignment target.", Equals)
@@ -374,7 +374,8 @@ primary([#t{type=Val}=T|Tokens]) when Val == false orelse Val == true orelse Val
 primary([#t{type={Label, Val}}=T|Tokens]) when Label == number orelse Label == string -> 
     ast(literal, Val, T, Tokens);
 primary([#t{type={id, Id}}=T|Tokens]) ->
-    ast(variable, Id, T, Tokens);  % This is variable expression that will be looked up at runtime.
+    % ast(variable, Id, T, Tokens);  % This is variable expression that will be looked up at runtime.
+    {{variable, erlang:make_ref(), Id, T}, Tokens};
 primary([#t{type=lparen}=T|Tokens])      ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(rparen, Tokens1, "Expect ')' after grouping expression"),
