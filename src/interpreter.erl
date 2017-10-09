@@ -13,9 +13,13 @@ init() ->
 
 interpret(BinOrSourceCode) ->
     {ok, Tokens} = scanner:lex(BinOrSourceCode),
+    run_parser(Tokens),
+    ok.
+
+run_parser(Tokens) ->
     try parser:parse(Tokens) of
         {ok, Statements} ->
-            interpret_statements(Statements)
+            run_resolver(Statements)
     catch
         {parse_error, Message, Line, Literal} ->
             ?MODULE:error(parse_error, Line, Literal, Message);
@@ -26,12 +30,22 @@ interpret(BinOrSourceCode) ->
     end,
     ok.
 
+run_resolver(Statements) ->
+    try resolver:run(Statements) of
+        ok ->
+            interpret_statements(Statements)
+    catch
+        {resolve_error, Line, Literal, Message} ->
+            ?MODULE:error(resolve_error, Line, Literal, Message);
+        error:Reason ->
+            ?MODULE:error(resolver_crashed, Reason)
+    end,
+    ok.
+
 interpret_statements([]) -> ok;
 interpret_statements([S|Statements]) ->
     try visit(S) of
-        ok -> ok;
-        % Some statements, like assignment, will return an actual value. Ignore it.
-        _Any -> ok
+        _Any -> ok % Some statements, like assignment, will return an actual value. Ignore it.
     catch
         {runtime_error, Type, Message, Line, Literal} ->            
             ?MODULE:error(Type, Line, Literal, Message),
@@ -48,11 +62,11 @@ interpret_statements([S|Statements]) ->
 % Statements
 %%%%%%%%%%%%%%%%%%%%%
 
-visit({dumpenv, Line}) ->
-    environment:dump(Line),
+visit({dumpenv, T}) ->
+    environment:dump(T#t.line),
     ok;
 
-visit({function_decl, Name, Parameters, Body}) ->
+visit({function_decl, Name, Parameters, Body, T}) ->
     Closure = environment:current(),
     NewF = {function_decl, Name, Parameters, Body, Closure},
     environment:define(Name, NewF),
@@ -84,19 +98,19 @@ visit({while_stmt, ConditionalExpr, LoopBody, _T}=AST) ->
 %     Values = [visit(E) || E <- Expressions],
 %     [pretty_print(V) || V <- Values],
 %     ok;
-visit({print_stmt, E, _}) ->
-    V = visit(E),
-    pretty_print(V),
+visit({print_stmt, Expr, _T}) ->
+    Val = visit(Expr),
+    pretty_print(Val),
     ok;
 
-visit({block, Statements}) ->
+visit({block, Statements, _T}) ->
     environment:enclose(),
     % [visit(S) || S <- Statements],  %TODO: try/catch here? What if a statement throws an error?
     interpret_statements(Statements),
     environment:unenclose(),
     ok;
 
-visit({expr_stmt, Expr, _}) ->
+visit({expr_stmt, Expr, _T}) ->
     visit(Expr),
     ok;
 
@@ -119,9 +133,9 @@ visit({call, CalleeExpr, Arguments, T}) ->
     lox_callable:call(?MODULE, Callee, ArgumentVals, T);
 
 % Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
-visit({assign, Name, Value, T}) ->
+visit({assign, R, Name, Value, T}) ->
     Val = visit(Value),
-    environment:assign(Name, Val, T),
+    environment:assign(R, Name, Val, T),
     % Return the assigned value so that the following works:
     %  var a = 1;
     %  print a = 2; //"2"
@@ -209,14 +223,15 @@ visit({prefix, Op, RExp, T}) ->
 %     end;
 
 
-visit({grouping, E, _}) ->
+visit({grouping, E, _T}) ->
     visit(E);
 
-visit({variable, Id, T}) -> % A variable expression (that is, lookup the value of the variable)
-    Val = environment:get(Id, T),   
+visit({variable, R, Id, T}) -> % A variable expression (that is, lookup the value of the variable)
+    % Val = environment:get(Id, T),
+    Val = environment:get(R, Id, T),   
     Val;
 
-visit({literal, Val, _}) -> Val.   
+visit({literal, Val, _T}) -> Val.   
 
 
 eval_if(true, ThenBranch, _ElseBranch) ->
