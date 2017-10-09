@@ -1,10 +1,11 @@
 -module(resolver).
 
--export([start/1]).
+-export([run/1]).
 
 -include("records.hrl").
 
-start(Statements) -> 
+run(Statements) ->
+    push_current_function(none),
     resolve_all(Statements, [dict:new()]),
     ok.
 
@@ -60,7 +61,11 @@ resolve({expr_stmt, Expr, _T}, ScopeStack) ->
     ScopeStack1;
 
 % We'll use exceptions to return to the caller from any point in a function.
-resolve({return_stmt, Expr, _T}, ScopeStack) ->
+resolve({return_stmt, Expr, T}, ScopeStack) ->
+    case check_current_function() of
+        none -> throw({resolve_error, T#t.line, T#t.literal, "Cannot return from top-level code"});
+        _any -> ok
+    end,
     ScopeStack1 = case Expr of
         nil -> ScopeStack;
         _ -> resolve(Expr, ScopeStack)
@@ -192,6 +197,7 @@ resolve_local(R, Name, I, [Dict|ScopeStack]) ->
     end.
 
 resolve_function({function_decl, _Name, Parameters, Body, T}, Type, ScopeStack) ->
+    push_current_function(Type), % Keep track of the function type so we can detact bad returns.
     ScopeStack1 = begin_scope(ScopeStack),
     ScopeStack2 = lists:foldl(fun(ParamId, SS) -> 
         SS1 = declare(ParamId, T, SS),
@@ -200,4 +206,34 @@ resolve_function({function_decl, _Name, Parameters, Body, T}, Type, ScopeStack) 
     end, ScopeStack1, Parameters),
     ScopeStack3 = resolve(Body, ScopeStack2),
     ScopeStack4 = end_scope(ScopeStack3),
+    pop_current_function(),
     ScopeStack4.
+
+
+
+% I'm sick of changing every method signature each time we add state. Just use the process dictionary to keep
+% track of the valid return type thing.
+push_current_function(Type) ->
+    Stack1 = case get(current_function) of
+        undefined -> [Type];
+        [] -> [Type];
+        Stack -> [Type|Stack]
+    end,
+    put(current_function, Stack1),
+    ok.
+
+pop_current_function() ->
+    Stack = case get(current_function) of
+        undefined -> [];
+        [] -> [];
+        [_H|T] -> T
+    end,
+    put(current_function, Stack),
+    ok.
+
+check_current_function() ->
+    case get(current_function) of
+        undefined -> none;
+        [] -> none;
+        [H|_T] -> H
+    end.

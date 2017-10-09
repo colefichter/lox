@@ -31,7 +31,7 @@ run_parser(Tokens) ->
     ok.
 
 run_resolver(Statements) ->
-    try resolver:start(Statements) of
+    try resolver:run(Statements) of
         ok ->
             interpret_statements(Statements)
     catch
