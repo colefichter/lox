@@ -34,8 +34,8 @@ declaration_list(Tokens, Declarations) ->
             declaration_list(Tokens2, Declarations)
     end.
 
-declaration([#t{type='fun'}|Tokens]) ->
-    function(function, Tokens);
+declaration([#t{type='fun'}=T|Tokens]) ->
+    function(function, T, Tokens);
 declaration([#t{type=var}=T|Tokens]) ->
     {Id, Tokens1} = identifier(Tokens, "Expect variable name after 'var' keyword"), % TODO: How to correctly handle missing var name?
     {InitilizerExpr, Tokens2} = initializer(Tokens1),
@@ -46,14 +46,14 @@ declaration(Tokens) ->
 %% TODO: Catch parse error and synchronize in declaration()? How to do it? Do we need it?
 
 
-function(Kind, Tokens) ->
+function(Kind, T, Tokens) ->
     Label = atom_to_list(Kind),
     {Name, Tokens1} = identifier(Tokens, "Expect " ++ Label ++ " name"),
     Tokens2 = consume(lparen, Tokens1, "Expect '(' after " ++ Label ++ " name"),
     {Parameters, Tokens3} = function_parameters(Tokens2),
     Tokens4 = consume(lbrace, Tokens3, "Expect '{' before " ++ Label ++ " body"),
     {Body, Tokens5} = block(Tokens4),
-    {{function_decl, Name, Parameters, Body}, Tokens5}.
+    {{function_decl, Name, Parameters, Body, T}, Tokens5}.
 
 function_parameters(Tokens) ->
     function_parameters([], Tokens).
@@ -88,7 +88,7 @@ initializer(Tokens) ->
 
 statement([#t{type=dumpenv}=T|Tokens]) ->
     Tokens1 = consume(semi_colon, Tokens, "Expect ';' after dumpenv statement"),
-    {{dumpenv, T#t.line}, Tokens1};
+    {{dumpenv, T}, Tokens1};
 
 statement([#t{type=for}=T|Tokens]) ->
 	Tokens1 = consume(lparen, Tokens, "Expect '(' after for statement"),
@@ -98,12 +98,12 @@ statement([#t{type=for}=T|Tokens]) ->
 	{IncrementExpr, Tokens5} = for_increment(Tokens4),
 	Tokens6 = consume(rparen, Tokens5, "Expect ')' after for loop clauses"),
 	{LoopBody, Tokens7} = statement(Tokens6),
-	LoopBody1 = for_combine_body_and_increment(IncrementExpr, LoopBody),
+	LoopBody1 = for_combine_body_and_increment(IncrementExpr, LoopBody, T),  % TODO: find a better T for this?
 	% Represent for loops with existing primitives, rather than adding new ones.
 	CompleteWhileLoop = {while_stmt, ConditionalExpr, LoopBody1, T},
 	FinalStatement = case InitializerExpr of
 		nil -> CompleteWhileLoop;
-		_ -> {block, [InitializerExpr|[CompleteWhileLoop]]}
+		_ -> {block, [InitializerExpr|[CompleteWhileLoop]], T}
 	end,
 	{FinalStatement, Tokens7};
 statement([#t{type='if'}=T|Tokens]) ->
@@ -181,15 +181,16 @@ for_increment(Tokens) ->
 	{Expr, Tokens1} = expression(Tokens),
 	{Expr, Tokens1}.
 
-for_combine_body_and_increment(nil, LoopBody) ->
+for_combine_body_and_increment(nil, LoopBody, _T) ->
 	LoopBody;
-for_combine_body_and_increment(IncrementExpr, LoopBody) ->
-	{block, [LoopBody|[IncrementExpr]]}.
+for_combine_body_and_increment(IncrementExpr, LoopBody, T) ->
+	{block, [LoopBody|[IncrementExpr]], T}.
 
 
 block(Tokens) ->
+    [T|_] = Tokens,
     {Statements, Tokens1} = block(Tokens, []),
-    {{block, Statements}, Tokens1}.
+    {{block, Statements, T}, Tokens1}.
 block([#t{type=rbrace}|Tokens], Statements) -> %TODO: handle empty list in case code is missing }
     {lists:reverse(Statements), Tokens};
 block(Tokens, Statements) ->
