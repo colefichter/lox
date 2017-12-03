@@ -8,6 +8,14 @@
 call(Interpreter, Callee, Arguments, T) ->
     invoke(Interpreter, Callee, Arguments, T).
 
+% This match is for class instantiation, for example: var x = Bagel(); //Bagel should be defined as a class.
+invoke(Interpreter, {class, Name, Methods}, Arguments, T) ->
+    %Instantiate an instance of the class.
+    %TODO: constructors go here eventually?
+    ReturnVal = {lox_instance, Name}, % TODO: this will change when we add constructor logic...
+    ReturnVal;
+
+
 invoke(Interpreter, {native_function, {M, F, Parameters}}, Arguments, T) ->
     fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T),
     % Native functions are always declared in the global scope:

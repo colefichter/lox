@@ -66,10 +66,10 @@ visit({dumpenv, T}) ->
     environment:dump(T#t.line),
     ok;
 
-visit({class_stmt, Name, _Methods, T}) ->
+visit({class_stmt, Name, Methods, T}) ->
     % This two-stage binding looks strange, but allows use of the class name inside its declaration.
     environment:define(Name, nil), 
-    Class = {class, Name},
+    Class = {class, Name, Methods},
     environment:assign(Name, Class, T),
     ok;
 
@@ -319,8 +319,10 @@ warn(Type, Line, Literal, Message) ->
 highlight(Message) -> io:format("~s", [color:red(Message)]).
 
 
-pretty_print({class, Name}) -> % This is equivalent to a default .ToString() object method in java.
+pretty_print({class, Name, _Methods}) ->
     io:format("~s~n", [Name]);
+pretty_print({lox_instance, Name}) ->
+    io:format("instance of ~s~n", [Name]);
 pretty_print(V) when is_list(V) ->
     io:format("~s~n", [V]);
 pretty_print(V) ->
