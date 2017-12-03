@@ -319,8 +319,10 @@ warn(Type, Line, Literal, Message) ->
 highlight(Message) -> io:format("~s", [color:red(Message)]).
 
 
+% When printing a class, just print the name (see test "class4"):
 pretty_print({class, Name, _Methods}) ->
     io:format("~s~n", [Name]);
+% When printing an instance of a class, print "instance of Name" (see test "class_instance"):
 pretty_print({lox_instance, Name}) ->
     io:format("instance of ~s~n", [Name]);
 pretty_print(V) when is_list(V) ->
