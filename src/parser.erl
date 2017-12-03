@@ -34,6 +34,12 @@ declaration_list(Tokens, Declarations) ->
             declaration_list(Tokens2, Declarations)
     end.
 
+declaration([#t{type=class}=T|Tokens]) ->
+    {Name, Tokens1} = identifier(Tokens, "Expect class name after 'class' keyword"),
+    Tokens2 = consume(lbrace, Tokens1, "Expect '{' before class body"),
+    {Methods, Tokens3} = method_list(Tokens2),
+    Tokens4 = consume(rbrace, Tokens3, "Expect '}' after class body"),
+    {{class_stmt, Name, Methods, T}, Tokens4};    
 declaration([#t{type='fun'}=T|Tokens]) ->
     function(function, T, Tokens);
 declaration([#t{type=var}=T|Tokens]) ->
@@ -45,6 +51,14 @@ declaration(Tokens) ->
     statement(Tokens).
 %% TODO: Catch parse error and synchronize in declaration()? How to do it? Do we need it?
 
+method_list(Tokens) ->
+    method_list([], Tokens).
+method_list(Methods, [#t{type=rbrace}|_Rest]=Tokens) ->
+    % RBRACE marks end of class body... we're done
+    {lists:reverse(Methods), Tokens};
+method_list(Methods, [T|_Rest]=Tokens) ->
+    {Method, Tokens1} = function(method, T, Tokens),
+    method_list([Method|Methods], Tokens1).
 
 function(Kind, T, Tokens) ->
     Label = atom_to_list(Kind),
@@ -211,7 +225,7 @@ assignment_if(AssignExpr, [#t{type=equal}=T|Tokens]) ->
     Equals = T, % Just to match the code in the book...
     {Value, Tokens1} = assignment(Tokens), % Value from the right side of the "=".
     case AssignExpr of % AssignExpr is the left side of the "=".
-        {variable, R, Id, T1} ->
+        {variable, _R, Id, T1} ->
             Name = Id, % Just to match the code in the book...
             {{assign, erlang:make_ref(), Name, Value, T1}, Tokens1}; % TODO: is T1 the correct token to send back?
         {_any, _any, _T} ->

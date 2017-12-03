@@ -16,6 +16,11 @@ run(Statements) ->
 resolve({dumpenv, _T}, ScopeStack) ->
     ScopeStack;
 
+resolve({class_stmt, Name, _Methods, T}, ScopeStack) ->
+    ScopeStack1 = declare(Name, T, ScopeStack),
+    ScopeStack2 = define(Name, ScopeStack1),
+    ScopeStack2;
+
 resolve({function_decl, Name, _Parameters, _Body, T}=F, ScopeStack) ->
     ScopeStack1 = declare(Name, T, ScopeStack),
     ScopeStack2 = define(Name, ScopeStack1),
