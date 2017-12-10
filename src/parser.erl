@@ -359,6 +359,10 @@ call(Tokens) ->
 call_while(Expr, [#t{type=lparen}|Tokens]) ->
     {Expr1,  Tokens1} = finish_call(Expr, Tokens),
     call_while(Expr1, Tokens1);
+call_while(Expr, [#t{type=dot}=T|Tokens]) ->
+    {Id, Tokens1} = identifier(Tokens, "Expect property name after '.'"),
+    GetExpr = {get_expr, Expr, Id, T}, % Expr is the thing called to the left of the dot, like: expr.myMethod()
+    call_while(GetExpr, Tokens1);
 call_while(Expr, Tokens) ->
     {Expr, Tokens}.
 

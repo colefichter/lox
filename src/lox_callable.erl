@@ -1,18 +1,24 @@
 -module(lox_callable).
 
--export([call/4]).
+-export([call/4, is_instance/1]).
 
 -include("records.hrl").
+
+
+is_instance({lox_instance, _Name, _State}) -> true;
+is_instance(_AnythingElse) -> false.
+
 
 % The java version passes the interpreter as a parameter when invoking a function call...
 call(Interpreter, Callee, Arguments, T) ->
     invoke(Interpreter, Callee, Arguments, T).
 
 % This match is for class instantiation, for example: var x = Bagel(); //Bagel should be defined as a class.
-invoke(Interpreter, {class, Name, Methods}, Arguments, T) ->
+invoke(_Interpreter, {class, Name, _Methods}, _Arguments, _T) ->
     %Instantiate an instance of the class.
     %TODO: constructors go here eventually?
-    ReturnVal = {lox_instance, Name}, % TODO: this will change when we add constructor logic...
+    % The methods live in the class and end up in the environment. Let's put a state dict in here (this is how the author does it).
+    ReturnVal = {lox_instance, Name, dict:new()}, % TODO: this will change when we add constructor logic...
     ReturnVal;
 
 
@@ -21,7 +27,7 @@ invoke(Interpreter, {native_function, {M, F, Parameters}}, Arguments, T) ->
     % Native functions are always declared in the global scope:
     PreviousScope = environment:create_new_scope(T),
     define_all(Parameters, Arguments),
-    ReturnVal = try erlang:apply(M, F, Arguments) of % Body should be a block AST node.
+    ReturnVal = try erlang:apply(M, F, Arguments) of
         Any -> Any
     after
         environment:replace_scope(PreviousScope)

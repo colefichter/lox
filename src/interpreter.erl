@@ -66,14 +66,14 @@ visit({dumpenv, T}) ->
     environment:dump(T#t.line),
     ok;
 
-visit({class_stmt, Name, Methods, T}) ->
+visit({class_stmt, Name, Methods, T}) -> % The declaration of a class, like: class Bagel { ... }
     % This two-stage binding looks strange, but allows use of the class name inside its declaration.
     environment:define(Name, nil), 
     Class = {class, Name, Methods},
     environment:assign(Name, Class, T),
     ok;
 
-visit({function_decl, Name, Parameters, Body, T}) ->
+visit({function_decl, Name, Parameters, Body, _T}) ->
     Closure = environment:current(),
     NewF = {function_decl, Name, Parameters, Body, Closure},
     environment:define(Name, NewF),
@@ -138,6 +138,19 @@ visit({call, CalleeExpr, Arguments, T}) ->
     % TODO: how to check the type of the callee? See http://www.craftinginterpreters.com/functions.html#call-type-errors
     ArgumentVals = [visit(A) || A <- Arguments],
     lox_callable:call(?MODULE, Callee, ArgumentVals, T);
+
+
+% A get expression is a chained dot evalation, like: pizza.toppings; // pizza is instance of class Pizza, Toppings is a property
+%  CalleeExpr is to the left of the dot (and should be an instance), Id is to the right of the dot and should be the property name.
+visit({get_expr, CalleeExpr, Id, T}) ->
+    CalleeInstance = visit(CalleeExpr),
+    case lox_callable:is_instance(CalleeInstance) of
+        true -> ok;
+        false -> rte(runtime_error, "Only instances can have properties", T)
+    end,
+    Property = lookup_property(CalleeInstance, Id, T),
+    Property;
+
 
 % Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
 visit({assign, R, Name, Value, T}) ->
@@ -293,6 +306,13 @@ check_non_zero(_Op, 0, T) ->
 check_non_zero(_, _, _T) -> ok.
 
 
+lookup_property({lox_instance, _ClassName, State}, PropertyName, T) ->
+    case dict:find(PropertyName, State) of
+        error -> rte(runtime_error, "Undefined property '" ++ PropertyName ++ "'", T);
+        {ok, Value} -> Value
+    end.
+
+
 % TODO: can we remove the Op param now that we have the token?
 rte(Type, Message, T) ->
     throw({runtime_error, Type, Message, T#t.line, T#t.literal}).
@@ -323,7 +343,7 @@ highlight(Message) -> io:format("~s", [color:red(Message)]).
 pretty_print({class, Name, _Methods}) ->
     io:format("~s~n", [Name]);
 % When printing an instance of a class, print "instance of Name" (see test "class_instance"):
-pretty_print({lox_instance, Name}) ->
+pretty_print({lox_instance, Name, _State}) ->
     io:format("instance of ~s~n", [Name]);
 pretty_print(V) when is_list(V) ->
     io:format("~s~n", [V]);
