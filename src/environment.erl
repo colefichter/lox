@@ -2,12 +2,31 @@
 
 -export([init/0, current/0, define/2, assign/3, assign/4, get/2, get/3, enclose/0, unenclose/0, resolve/2]).
 
+-export([init_object_state/0, get_object_property/2, set_object_property/3]).
+
 -export([create_new_scope/1, create_new_scope/2, replace_scope/1, dump/1]).
 
 -include("records.hrl").
 
 init() ->
 	put(env, [start_dict()]),
+	ok.
+
+% Store an empty state dictionary for a new instance of a class
+init_object_state() ->
+	R = erlang:make_ref(),
+	Pid = global(),
+	env_dict:put(Pid, R, dict:new()),
+	R.
+get_object_property(R, PropName) when is_reference(R) ->
+	Pid = global(),
+	{ok, ObjectStateDict} = env_dict:get(Pid, R),
+	dict:find(PropName, ObjectStateDict).
+set_object_property(R, PropName, PropValue) when is_reference(R) ->
+	Pid = global(),
+	{ok, ObjectStateDict} = env_dict:get(Pid, R),
+	ObjectStateDict1 = dict:store(PropName, PropValue, ObjectStateDict),
+	env_dict:put(Pid, R, ObjectStateDict1),
 	ok.
 
 % Create a new environment based on the globals
@@ -117,6 +136,6 @@ try_get(Name, [Pid|Enclosed], Token) ->
 			try_get(Name, Enclosed, Token)
 	end.
 
-undefined(Token) -> interpreter:rte(undefined_variable, "Undefined variable", Token).
+undefined(T) -> interpreter:rte(undefined_variable, "Undefined variable", T).
 
 global() -> lists:last(current()).

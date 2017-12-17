@@ -5,7 +5,7 @@
 -include("records.hrl").
 
 
-is_instance({lox_instance, _Name, _State}) -> true;
+is_instance({lox_instance, _Name, _StateRef}) -> true;
 is_instance(_AnythingElse) -> false.
 
 
@@ -18,7 +18,8 @@ invoke(_Interpreter, {class, Name, _Methods}, _Arguments, _T) ->
     %Instantiate an instance of the class.
     %TODO: constructors go here eventually?
     % The methods live in the class and end up in the environment. Let's put a state dict in here (this is how the author does it).
-    ReturnVal = {lox_instance, Name, dict:new()}, % TODO: this will change when we add constructor logic...
+    R = environment:init_object_state(),
+    ReturnVal = {lox_instance, Name, R}, % TODO: this will change when we add constructor logic...
     ReturnVal;
 
 

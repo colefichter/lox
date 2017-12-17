@@ -94,6 +94,11 @@ resolve({get_expr, CalleeExpr, _Id, _T}, ScopeStack) ->
     ScopeStack1 = resolve(CalleeExpr, ScopeStack),
     ScopeStack1;
 
+resolve({set_expr, Expr, _Name, Value, _T}, ScopeStack) ->
+    ScopeStack1 = resolve(Value, ScopeStack),
+    ScopeStack2 = resolve(Expr, ScopeStack1),
+    ScopeStack2;
+
 % Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
 resolve({assign, R, Name, Value, _T}, ScopeStack) ->
     ScopeStack1 = resolve(Value, ScopeStack),

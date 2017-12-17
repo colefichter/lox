@@ -148,9 +148,19 @@ visit({get_expr, CalleeExpr, Id, T}) ->
         true -> ok;
         false -> rte(runtime_error, "Only instances can have properties", T)
     end,
-    Property = lookup_property(CalleeInstance, Id, T),
-    Property;
+    PropVal = lookup_property(CalleeInstance, Id, T),
+    PropVal;
 
+visit({set_expr, Expr, Name, Value, T}) ->
+    Object = visit(Expr), %The object on wich a value is being set
+    case lox_callable:is_instance(Object) of
+        true -> ok;
+        false -> rte(runtime_error, "Only instances can have fields", T)
+    end,
+    Val = visit(Value),
+    {lox_instance, _Name, R} = Object,
+    environment:set_object_property(R, Name, Val),
+    Val;
 
 % Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
 visit({assign, R, Name, Value, T}) ->
@@ -306,12 +316,12 @@ check_non_zero(_Op, 0, T) ->
 check_non_zero(_, _, _T) -> ok.
 
 
-lookup_property({lox_instance, _ClassName, State}, PropertyName, T) ->
-    case dict:find(PropertyName, State) of
-        error -> rte(runtime_error, "Undefined property '" ++ PropertyName ++ "'", T);
-        {ok, Value} -> Value
+lookup_property({lox_instance, ClassName, R}, PropertyName, T) ->
+    case environment:get_object_property(R, PropertyName) of
+        {ok, Value} -> Value;
+        error -> 
+            rte(runtime_error, "Undefined property '" ++ PropertyName ++ "' on instance of class '" ++ ClassName ++ "'", T)
     end.
-
 
 % TODO: can we remove the Op param now that we have the token?
 rte(Type, Message, T) ->

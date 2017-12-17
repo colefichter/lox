@@ -157,10 +157,10 @@ statement([#t{type=while}=T|Tokens]) ->
 statement([#t{type=lbrace}|Tokens]) -> % Start of a block
     {BlockStatement, Tokens1} = block(Tokens),
     {BlockStatement, Tokens1};
-statement(Tokens) ->
+statement([T|_Rest]=Tokens) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression statement"),
-    {{expr_stmt, Expr, unknown_token}, Tokens2}.
+    {{expr_stmt, Expr, T}, Tokens2}.
 
 % Multiple print expressions isn't working correctly from inside a function:
 %    fun x() { print 1; } //crashes!
@@ -225,9 +225,12 @@ assignment_if(AssignExpr, [#t{type=equal}=T|Tokens]) ->
     Equals = T, % Just to match the code in the book...
     {Value, Tokens1} = assignment(Tokens), % Value from the right side of the "=".
     case AssignExpr of % AssignExpr is the left side of the "=".
-        {variable, _R, Id, T1} ->
-            Name = Id, % Just to match the code in the book...
-            {{assign, erlang:make_ref(), Name, Value, T1}, Tokens1}; % TODO: is T1 the correct token to send back?
+        {variable, _R1, Id1, _T1} ->
+            Name1 = Id1, % Just to match the code in the book...
+            {{assign, erlang:make_ref(), Name1, Value, T}, Tokens1};
+        {get_expr, Expr2, Id2, _T2} ->
+            Name2 = Id2, % Just to match the code in the book...
+            {{set_expr, Expr2, Name2, Value, T}, Tokens1};
         {_any, _any, _T} ->
             % Is Equals the correct token to use? Should it be the _T in the pattern?
             pe("Invalid assignment target.", Equals)
