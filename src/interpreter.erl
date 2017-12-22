@@ -148,8 +148,22 @@ visit({get_expr, CalleeExpr, Id, T}) ->
         true -> ok;
         false -> rte(runtime_error, "Only instances can have properties", T)
     end,
-    PropVal = lookup_property(CalleeInstance, Id, T),
-    PropVal;
+    % case CalleeInstance of
+    %     {lox_instance, _ClassName, _R}  -> lookup_property(CalleeInstance, Id, T);
+    %     {class, _ClassName, _Methods}   -> lookup_method(CalleeInstance, Id, T)
+    % end;
+
+    % First, try to find a field by name:
+    PropertyOrMethod = case lookup_property(CalleeInstance, Id, T) of
+        not_found ->
+            % Now look for a method by name:
+            case lookup_method(CalleeInstance, Id, T) of
+                not_found -> missing_property(CalleeInstance, Id, T);
+                Method -> Method
+            end;
+        Property -> Property
+    end,
+    PropertyOrMethod;
 
 visit({set_expr, Expr, Name, Value, T}) ->
     Object = visit(Expr), %The object on wich a value is being set
@@ -316,12 +330,22 @@ check_non_zero(_Op, 0, T) ->
 check_non_zero(_, _, _T) -> ok.
 
 
-lookup_property({lox_instance, ClassName, R}, PropertyName, T) ->
+lookup_property({lox_instance, _ClassName, R}, PropertyName, _T) ->
     case environment:get_object_property(R, PropertyName) of
         {ok, Value} -> Value;
         error -> 
-            rte(runtime_error, "Undefined property '" ++ PropertyName ++ "' on instance of class '" ++ ClassName ++ "'", T)
+            not_found % rte(runtime_error, "Undefined property '" ++ PropertyName ++ "' on instance of class '" ++ ClassName ++ "'", T)
     end.
+
+lookup_method({lox_instance, ClassName, _R}, MethodName, _T) ->
+    Methods = environment:get_class_methods(ClassName),
+    case lists:filter(fun({function_decl, XName, _Parameters, _Body, _T1}) -> XName == MethodName end, Methods) of
+        [] -> not_found; %rte(runtime_error, "Undefined method '" ++ MethodName ++ "' on instance of class '" ++ ClassName ++ "'", T);
+        [H|_] -> H
+    end.
+
+missing_property({_, ClassName, _}, Name, T) ->
+    rte(runtime_error, "Undefined property or method '" ++ Name ++ "' on instance of class '" ++ ClassName ++ "'", T).
 
 % TODO: can we remove the Op param now that we have the token?
 rte(Type, Message, T) ->

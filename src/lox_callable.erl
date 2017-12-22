@@ -14,8 +14,9 @@ call(Interpreter, Callee, Arguments, T) ->
     invoke(Interpreter, Callee, Arguments, T).
 
 % This match is for class instantiation, for example: var x = Bagel(); //Bagel should be defined as a class.
-invoke(_Interpreter, {class, Name, _Methods}, _Arguments, _T) ->
+invoke(_Interpreter, {class, Name, _Methods}=Class, _Arguments, _T) ->
     %Instantiate an instance of the class.
+    environment:register_class(Class),
     %TODO: constructors go here eventually?
     % The methods live in the class and end up in the environment. Let's put a state dict in here (this is how the author does it).
     R = environment:init_object_state(),

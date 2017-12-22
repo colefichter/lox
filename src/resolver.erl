@@ -16,10 +16,11 @@ run(Statements) ->
 resolve({dumpenv, _T}, ScopeStack) ->
     ScopeStack;
 
-resolve({class_stmt, Name, _Methods, T}, ScopeStack) ->
+resolve({class_stmt, Name, Methods, T}, ScopeStack) ->
     ScopeStack1 = declare(Name, T, ScopeStack),
     ScopeStack2 = define(Name, ScopeStack1),
-    ScopeStack2;
+    ScopeStack3 = resolve_methods(Methods, ScopeStack2),
+    ScopeStack3;
 
 resolve({function_decl, Name, _Parameters, _Body, T}=F, ScopeStack) ->
     ScopeStack1 = declare(Name, T, ScopeStack),
@@ -162,6 +163,12 @@ resolve_all([S|Statements], ScopeStack) ->
     ScopeStack1 = resolve(S, ScopeStack),
     ScopeStack2 = resolve_all(Statements, ScopeStack1),
     ScopeStack2.
+
+resolve_methods([], ScopeStack) ->
+    ScopeStack;
+resolve_methods([M|Methods], ScopeStack) ->
+    ScopeStack1 = resolve_function(M, method, ScopeStack),
+    resolve_methods(Methods, ScopeStack1).
 
 declare(_Name, _T,  []) -> [];
 declare(Name, T, [Dict|ScopeStack]) ->

@@ -6,6 +6,8 @@
 
 -export([create_new_scope/1, create_new_scope/2, replace_scope/1, dump/1]).
 
+-export([get_class_methods/1, register_class/1]).
+
 -include("records.hrl").
 
 init() ->
@@ -27,6 +29,16 @@ set_object_property(R, PropName, PropValue) when is_reference(R) ->
 	{ok, ObjectStateDict} = env_dict:get(Pid, R),
 	ObjectStateDict1 = dict:store(PropName, PropValue, ObjectStateDict),
 	env_dict:put(Pid, R, ObjectStateDict1),
+	ok.
+
+get_class_methods(ClassName) ->
+	Pid = global(),
+	{ok, Methods} = env_dict:get(Pid, {class, ClassName}),
+	Methods.
+
+register_class({class, Name, Methods}) ->
+	Pid = global(),
+	env_dict:put(Pid, {class, Name}, Methods),
 	ok.
 
 % Create a new environment based on the globals
