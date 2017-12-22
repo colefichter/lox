@@ -333,9 +333,9 @@ lookup_property({lox_instance, _ClassName, R}, PropertyName, _T) ->
 
 lookup_method({lox_instance, ClassName, _R}, MethodName, _T) ->
     Methods = environment:get_class_methods(ClassName),
-    case lists:filter(fun({function_decl, XName, _Parameters, _Body, _T1}) -> XName == MethodName end, Methods) of
-        [] -> not_found;
-        [H|_] -> H
+    case lists:keyfind(MethodName, 2, Methods) of % Each method is a tuple like {function_decl, Name, Parameters, Body, T}
+        false -> not_found;
+        FoundMethod -> FoundMethod
     end.
 
 missing_property({_, ClassName, _}, Name, T) ->
