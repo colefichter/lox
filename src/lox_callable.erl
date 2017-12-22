@@ -4,10 +4,8 @@
 
 -include("records.hrl").
 
-
 is_instance({lox_instance, _Name, _StateRef}) -> true;
 is_instance(_AnythingElse) -> false.
-
 
 % The java version passes the interpreter as a parameter when invoking a function call...
 call(Interpreter, Callee, Arguments, T) ->
@@ -22,7 +20,6 @@ invoke(_Interpreter, {class, Name, _Methods}=Class, _Arguments, _T) ->
     R = environment:init_object_state(),
     ReturnVal = {lox_instance, Name, R}, % TODO: this will change when we add constructor logic...
     ReturnVal;
-
 
 invoke(Interpreter, {native_function, {M, F, Parameters}}, Arguments, T) ->
     fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T),
@@ -54,11 +51,9 @@ invoke(Interpreter, {function_decl, _Name, Parameters, Body, Closure}, Arguments
 fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T) when length(Parameters) =/= length(Arguments) ->
     Message = io_lib:format("Wrong number of arguments. Expected ~p but got ~p", [length(Parameters), length(Arguments)]),
     Interpreter:rte(function_arity, Message, T);
-fail_on_argument_mismatch(_Interpreter, _Parameters, _Arguments, _T) ->
-    ok.
+fail_on_argument_mismatch(_Interpreter, _Parameters, _Arguments, _T) -> ok.
 
-define_all([], []) -> 
-    ok;
+define_all([], []) -> ok;
 define_all([P|Parameters], [A|Arguments]) ->
     environment:define(P, A),
     define_all(Parameters, Arguments).

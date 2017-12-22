@@ -19,14 +19,12 @@ resolve({dumpenv, _T}, ScopeStack) ->
 resolve({class_stmt, Name, Methods, T}, ScopeStack) ->
     ScopeStack1 = declare(Name, T, ScopeStack),
     ScopeStack2 = define(Name, ScopeStack1),
-    ScopeStack3 = resolve_methods(Methods, ScopeStack2),
-    ScopeStack3;
+    resolve_methods(Methods, ScopeStack2);
 
 resolve({function_decl, Name, _Parameters, _Body, T}=F, ScopeStack) ->
     ScopeStack1 = declare(Name, T, ScopeStack),
     ScopeStack2 = define(Name, ScopeStack1),
-    ScopeStack3 = resolve_function(F, function, ScopeStack2),
-    ScopeStack3;
+    resolve_function(F, function, ScopeStack2);
 
 % A statement declaring a new variable (not to be confused with a variable expression, which looks up the value of a variable)
 resolve({var_stmt, Id, InitilizerExpr, T}, ScopeStack) ->
@@ -35,36 +33,30 @@ resolve({var_stmt, Id, InitilizerExpr, T}, ScopeStack) ->
         nil -> ScopeStack1;
         _   -> resolve(InitilizerExpr, ScopeStack1)
     end,
-    ScopeStack3 = define(Id, ScopeStack2),
-    ScopeStack3;
+    define(Id, ScopeStack2);
 
 resolve({if_stmt, ConditionalExpr, ThenBranch, ElseBranch, _T}, ScopeStack) ->
     ScopeStack1 = resolve(ConditionalExpr, ScopeStack),
     ScopeStack2 = resolve(ThenBranch, ScopeStack1),
-    ScopeStack3 = case ElseBranch of
+    case ElseBranch of
         nil -> ScopeStack2;
         _ -> resolve(ElseBranch, ScopeStack2)
-    end,
-    ScopeStack3;
+    end;
 
 resolve({while_stmt, ConditionalExpr, LoopBody, _T}, ScopeStack) ->
     ScopeStack1 = resolve(ConditionalExpr, ScopeStack),
-    ScopeStack2 = resolve(LoopBody, ScopeStack1),
-    ScopeStack2;
+    resolve(LoopBody, ScopeStack1);
 
 resolve({print_stmt, Expr, _T}, ScopeStack) ->
-    ScopeStack1 = resolve(Expr, ScopeStack),
-    ScopeStack1;
+    resolve(Expr, ScopeStack);
 
 resolve({block, Statements, _T}, ScopeStack) ->
     ScopeStack1 = begin_scope(ScopeStack),
     ScopeStack2 = resolve_all(Statements, ScopeStack1),
-    ScopeStack3 = end_scope(ScopeStack2),
-    ScopeStack3;
+    end_scope(ScopeStack2);
 
 resolve({expr_stmt, Expr, _T}, ScopeStack) ->
-    ScopeStack1 = resolve(Expr, ScopeStack),
-    ScopeStack1;
+    resolve(Expr, ScopeStack);
 
 % We'll use exceptions to return to the caller from any point in a function.
 resolve({return_stmt, Expr, T}, ScopeStack) ->
@@ -72,11 +64,10 @@ resolve({return_stmt, Expr, T}, ScopeStack) ->
         none -> throw({resolve_error, T#t.line, T#t.literal, "Cannot return from top-level code"});
         _any -> ok
     end,
-    ScopeStack1 = case Expr of
+    case Expr of
         nil -> ScopeStack;
         _ -> resolve(Expr, ScopeStack)
-    end,
-    ScopeStack1;
+    end;
 
 %%%%%%%%%%%%%%%%%%%%%
 % Expressions
@@ -85,20 +76,17 @@ resolve({return_stmt, Expr, T}, ScopeStack) ->
 % This is the invocation of a function
 resolve({call, CalleeExpr, Arguments, _T}, ScopeStack) ->
     ScopeStack1 = resolve(CalleeExpr, ScopeStack),
-    ScopeStack2 = lists:foldl(fun(A, SS) -> 
+    lists:foldl(fun(A, SS) -> 
         SS1 = resolve(A, SS),
         SS1
-    end, ScopeStack1, Arguments),
-    ScopeStack2;
+    end, ScopeStack1, Arguments);
 
 resolve({get_expr, CalleeExpr, _Id, _T}, ScopeStack) ->
-    ScopeStack1 = resolve(CalleeExpr, ScopeStack),
-    ScopeStack1;
+    resolve(CalleeExpr, ScopeStack);
 
 resolve({set_expr, Expr, _Name, Value, _T}, ScopeStack) ->
     ScopeStack1 = resolve(Value, ScopeStack),
-    ScopeStack2 = resolve(Expr, ScopeStack1),
-    ScopeStack2;
+    resolve(Expr, ScopeStack1);
 
 % Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
 resolve({assign, R, Name, Value, _T}, ScopeStack) ->
@@ -108,41 +96,34 @@ resolve({assign, R, Name, Value, _T}, ScopeStack) ->
 
 resolve({LExp, logic_or, RExp, _T}, ScopeStack) ->
     ScopeStack1 = resolve(LExp, ScopeStack),
-    ScopeStack2 = resolve(RExp, ScopeStack1),
-    ScopeStack2;
+    resolve(RExp, ScopeStack1);
 
 resolve({LExp, logic_and, RExp, _T}, ScopeStack) ->
     ScopeStack1 = resolve(LExp, ScopeStack),
-    ScopeStack2 = resolve(RExp, ScopeStack1),
-    ScopeStack2;
+    resolve(RExp, ScopeStack1);
 
 resolve({conditional, ConditionalExpr, ThenBranch, ElseBranch, _T}, ScopeStack) ->
     ScopeStack1 = resolve(ConditionalExpr, ScopeStack),
     ScopeStack2 = resolve(ThenBranch, ScopeStack1),
-    ScopeStack3 = case ElseBranch of
+    case ElseBranch of
         nil -> ScopeStack2;
         _ -> resolve(ElseBranch, ScopeStack2)
-    end,
-    ScopeStack3;
+    end;
 
 resolve({binary, LExp, _Op, RExp, _T}, ScopeStack) ->
     ScopeStack1 = resolve(LExp, ScopeStack),
-    ScopeStack2 = resolve(RExp, ScopeStack1),
-    ScopeStack2;
+    resolve(RExp, ScopeStack1);
 
 resolve({unary, _Op, RExp, _T}, ScopeStack) ->
-    ScopeStack1 = resolve(RExp, ScopeStack),
-    ScopeStack1;
+    resolve(RExp, ScopeStack);
 
 % Prefix/postfix operators here don't work quite like C++. They are expressions only (rather than statements). 
 % No side-effects. Also, they are equivalent.
 resolve({prefix, _Op, RExp, _T}, ScopeStack) ->
-    ScopeStack1 = resolve(RExp, ScopeStack),
-    ScopeStack1;
+    resolve(RExp, ScopeStack);
 
 resolve({grouping, E, _T}, ScopeStack) ->
-    ScopeStack1 = resolve(E, ScopeStack),
-    ScopeStack1;
+    resolve(E, ScopeStack);
 
 % A variable expression (that is, lookup the value of the variable)
 resolve({variable, R, Id, T}, ScopeStack) ->
@@ -161,8 +142,7 @@ resolve_all([], ScopeStack) ->
     ScopeStack;
 resolve_all([S|Statements], ScopeStack) ->
     ScopeStack1 = resolve(S, ScopeStack),
-    ScopeStack2 = resolve_all(Statements, ScopeStack1),
-    ScopeStack2.
+    resolve_all(Statements, ScopeStack1).
 
 resolve_methods([], ScopeStack) ->
     ScopeStack;
