@@ -4,7 +4,7 @@
 
 -export([init_object_state/0, get_object_property/2, set_object_property/3]).
 
--export([create_new_scope/1, create_new_scope/2, replace_scope/1, dump/1]).
+-export([create_new_scope/0, create_new_scope/1, replace_scope/1, dump/1]).
 
 -export([get_class_methods/1, register_class/1]).
 
@@ -42,13 +42,13 @@ register_class({class, Name, Methods}) ->
 	ok.
 
 % Create a new environment based on the globals
-create_new_scope(_Token) ->
+create_new_scope() ->
 	PreviousEnv = current(),
 	put(env, [global()]),
 	PreviousEnv.
 
 % Create a new environment based on a given scope
-create_new_scope(Closure, _Token) ->
+create_new_scope(Closure) ->
 	PreviousEnv = current(),
 	put(env, [start_dict()|Closure]),
 	PreviousEnv.
@@ -57,7 +57,7 @@ replace_scope(Env) -> put(env, Env).
 
 current() -> get(env).
 
-% Add a new variable to the environment
+% Add a new variable to the environment. E.g. var a = 1;
 define(Name, Value) ->
 	% store/3 overwrites if the key already exists. This will enable a program to work in the REPL like:
 	%	 var a = "before";
@@ -68,7 +68,7 @@ define(Name, Value) ->
 	ok = env_dict:put(Pid, Name, Value),
 	ok.
 
-% Assign a value to an existing variable
+% Assign a value to an existing variable. E.g. a = 1;
 assign(Name, Value, Token) ->
 	try_assign(Name, Value, current(), Token),
 	ok.

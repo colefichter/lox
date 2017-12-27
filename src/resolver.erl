@@ -19,7 +19,10 @@ resolve({dumpenv, _T}, ScopeStack) ->
 resolve({class_stmt, Name, Methods, T}, ScopeStack) ->
     ScopeStack1 = declare(Name, T, ScopeStack),
     ScopeStack2 = define(Name, ScopeStack1),
-    resolve_methods(Methods, ScopeStack2);
+    ScopeStack3 = begin_scope(ScopeStack2),
+    ScopeStack4 = define("this", ScopeStack3), 
+    ScopeStack5 = resolve_methods(Methods, ScopeStack4),
+    end_scope(ScopeStack5);
 
 resolve({function_decl, Name, _Parameters, _Body, T}=F, ScopeStack) ->
     ScopeStack1 = declare(Name, T, ScopeStack),
@@ -87,6 +90,10 @@ resolve({get_expr, CalleeExpr, _Id, _T}, ScopeStack) ->
 resolve({set_expr, Expr, _Name, Value, _T}, ScopeStack) ->
     ScopeStack1 = resolve(Value, ScopeStack),
     resolve(Expr, ScopeStack1);
+
+resolve({this, R, _T}, ScopeStack) ->
+    resolve_local(R, "this", ScopeStack),
+    ScopeStack;
 
 % Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
 resolve({assign, R, Name, Value, _T}, ScopeStack) ->

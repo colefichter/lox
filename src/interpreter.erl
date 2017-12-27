@@ -139,6 +139,10 @@ visit({call, CalleeExpr, Arguments, T}) ->
     ArgumentVals = [visit(A) || A <- Arguments],
     lox_callable:call(?MODULE, Callee, ArgumentVals, T);
 
+visit({this, R, T}) ->
+    Val = environment:get(R, "this", T),
+    Val;
+
 
 % A get expression is a chained dot evalation, like: pizza.toppings; // pizza is instance of class Pizza, Toppings is a property
 %  CalleeExpr is to the left of the dot (and should be an instance), Id is to the right of the dot and should be the property name.
@@ -331,12 +335,20 @@ lookup_property({lox_instance, _ClassName, R}, PropertyName, _T) ->
         error -> not_found
     end.
 
-lookup_method({lox_instance, ClassName, _R}, MethodName, _T) ->
+lookup_method({lox_instance, ClassName, _R}=Instance, MethodName, _T) ->
     Methods = environment:get_class_methods(ClassName),
     case lists:keyfind(MethodName, 2, Methods) of % Each method is a tuple like {function_decl, Name, Parameters, Body, T}
         false -> not_found;
-        FoundMethod -> FoundMethod
+        FoundMethod ->
+            bind_method_to_this(FoundMethod, Instance) 
     end.
+
+bind_method_to_this({function_decl, Name, Parameters, Body, _T}=_Method, {lox_instance, _ClassName, _R}=Instance) ->
+    Closure = environment:current(),
+    % TODO: the book encloses here. Is that needed?
+    environment:define("this", Instance),
+    %mimic a global function, since lox_callable can already execute it:
+    {function_decl, Name, Parameters, Body, Closure}. 
 
 missing_property({_, ClassName, _}, Name, T) ->
     rte(runtime_error, "Undefined property or method '" ++ Name ++ "' on instance of class '" ++ ClassName ++ "'", T).

@@ -398,6 +398,8 @@ primary([#t{type={Label, Val}}=T|Tokens]) when Label == number orelse Label == s
 primary([#t{type={id, Id}}=T|Tokens]) ->
     % ast(variable, Id, T, Tokens);  % This is variable expression that will be looked up at runtime.
     {{variable, erlang:make_ref(), Id, T}, Tokens};
+primary([#t{type=this}=T|Tokens]) ->
+    {{this, erlang:make_ref(), T}, Tokens};
 primary([#t{type=lparen}=T|Tokens])      ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(rparen, Tokens1, "Expect ')' after grouping expression"),

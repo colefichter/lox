@@ -1,0 +1,9 @@
+class Thing {
+    test() {
+        print this.name;
+    }
+}
+
+var t = Thing();
+t.name = "The beast";
+t.test(); //"The beast"
