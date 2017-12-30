@@ -12,14 +12,21 @@ call(Interpreter, Callee, Arguments, T) ->
     invoke(Interpreter, Callee, Arguments, T).
 
 % This match is for class instantiation, for example: var x = Bagel(); //Bagel should be defined as a class.
-invoke(_Interpreter, {class, Name, _Methods}=Class, _Arguments, _T) ->
+invoke(Interpreter, {class, Name, Methods}=Class, Arguments, T) ->
     %Instantiate an instance of the class.
     environment:register_class(Class),
-    %TODO: constructors go here eventually?
     % The methods live in the class and end up in the environment. Let's put a state dict in here (this is how the author does it).
     R = environment:init_object_state(),
-    ReturnVal = {lox_instance, Name, R}, % TODO: this will change when we add constructor logic...
-    ReturnVal;
+    Instance = {lox_instance, Name, R}, % TODO: this will change when we add constructor logic...
+    case find_init_method(Methods) of
+        nil -> ok;
+        InitMethod ->
+            Initializer = Interpreter:bind_method_to_this(InitMethod, Instance),
+            % Interpreter:visit(Initializer),
+            invoke(Interpreter, Initializer, Arguments, T),
+            ok
+    end,
+    Instance;
 
 invoke(Interpreter, {native_function, {M, F, Parameters}}, Arguments, T) ->
     fail_on_argument_mismatch(Interpreter, Parameters, Arguments, T),
@@ -57,3 +64,9 @@ define_all([], []) -> ok;
 define_all([P|Parameters], [A|Arguments]) ->
     environment:define(P, A),
     define_all(Parameters, Arguments).
+
+find_init_method(Methods) ->
+    case lists:keyfind("init", 2, Methods) of
+        false -> nil;
+        Method -> Method
+    end.

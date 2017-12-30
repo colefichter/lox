@@ -1,0 +1,8 @@
+class Constructor {
+    init() {
+        this.name = "Test";
+    }
+}
+
+var x = Constructor();
+print x.name; //"Test"

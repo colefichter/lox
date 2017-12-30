@@ -1,6 +1,6 @@
 -module(interpreter).
 
--export([init/0, interpret/1, visit/1, error/2, error/4, warn/4, rte/3]).
+-export([init/0, interpret/1, visit/1, error/2, error/4, warn/4, rte/3, bind_method_to_this/2]).
 
 -include("records.hrl").
 
