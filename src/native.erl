@@ -9,9 +9,8 @@ str(X) when is_list(X) -> X;
 str(X) when is_integer(X) -> integer_to_list(X);
 str(X) when is_float(X) -> float_to_list(X);
 str(true) -> "true";
-str(false) -> "false".
-
-
+str(false) -> "false";
+str(nil) -> "nil".
 
 
 % UTILS

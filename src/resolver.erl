@@ -69,6 +69,7 @@ resolve({expr_stmt, Expr, _T}, ScopeStack) ->
 resolve({return_stmt, Expr, T}, ScopeStack) ->
     case check_current_function() of
         none -> throw({resolve_error, T#t.line, T#t.literal, "Cannot return from top-level code"});
+        initializer -> throw({resolve_error, T#t.line, T#t.literal, "Cannot return a value from an initializer/constructor"});
         _any -> ok
     end,
     case Expr of
@@ -162,7 +163,12 @@ resolve_all([S|Statements], ScopeStack) ->
 resolve_methods([], ScopeStack) ->
     ScopeStack;
 resolve_methods([M|Methods], ScopeStack) ->
-    ScopeStack1 = resolve_function(M, method, ScopeStack),
+    {function_decl, Name, _Parameters, _Body, _T} = M,
+    MethodType = case Name of
+        "init" -> initializer;
+        _Any -> method
+    end,
+    ScopeStack1 = resolve_function(M, MethodType, ScopeStack),
     resolve_methods(Methods, ScopeStack1).
 
 declare(_Name, _T,  []) -> [];
