@@ -34,6 +34,12 @@ declaration_list(Tokens, Declarations) ->
             declaration_list(Tokens2, Declarations)
     end.
 
+declaration([#t{type=class}=T|Tokens]) ->
+    {Name, Tokens1} = identifier(Tokens, "Expect class name after 'class' keyword"),
+    Tokens2 = consume(lbrace, Tokens1, "Expect '{' before class body"),
+    {Methods, Tokens3} = method_list(Tokens2),
+    Tokens4 = consume(rbrace, Tokens3, "Expect '}' after class body"),
+    {{class_stmt, Name, Methods, T}, Tokens4};    
 declaration([#t{type='fun'}=T|Tokens]) ->
     function(function, T, Tokens);
 declaration([#t{type=var}=T|Tokens]) ->
@@ -45,6 +51,14 @@ declaration(Tokens) ->
     statement(Tokens).
 %% TODO: Catch parse error and synchronize in declaration()? How to do it? Do we need it?
 
+method_list(Tokens) ->
+    method_list([], Tokens).
+method_list(Methods, [#t{type=rbrace}|_Rest]=Tokens) ->
+    % RBRACE marks end of class body... we're done
+    {lists:reverse(Methods), Tokens};
+method_list(Methods, [T|_Rest]=Tokens) ->
+    {Method, Tokens1} = function(method, T, Tokens),
+    method_list([Method|Methods], Tokens1).
 
 function(Kind, T, Tokens) ->
     Label = atom_to_list(Kind),
@@ -143,10 +157,10 @@ statement([#t{type=while}=T|Tokens]) ->
 statement([#t{type=lbrace}|Tokens]) -> % Start of a block
     {BlockStatement, Tokens1} = block(Tokens),
     {BlockStatement, Tokens1};
-statement(Tokens) ->
+statement([T|_Rest]=Tokens) ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(semi_colon, Tokens1, "Expect ';' after expression statement"),
-    {{expr_stmt, Expr, unknown_token}, Tokens2}.
+    {{expr_stmt, Expr, T}, Tokens2}.
 
 % Multiple print expressions isn't working correctly from inside a function:
 %    fun x() { print 1; } //crashes!
@@ -211,9 +225,12 @@ assignment_if(AssignExpr, [#t{type=equal}=T|Tokens]) ->
     Equals = T, % Just to match the code in the book...
     {Value, Tokens1} = assignment(Tokens), % Value from the right side of the "=".
     case AssignExpr of % AssignExpr is the left side of the "=".
-        {variable, R, Id, T1} ->
-            Name = Id, % Just to match the code in the book...
-            {{assign, erlang:make_ref(), Name, Value, T1}, Tokens1}; % TODO: is T1 the correct token to send back?
+        {variable, _R1, Id1, _T1} ->
+            Name1 = Id1, % Just to match the code in the book...
+            {{assign, erlang:make_ref(), Name1, Value, T}, Tokens1};
+        {get_expr, Expr2, Id2, _T2} ->
+            Name2 = Id2, % Just to match the code in the book...
+            {{set_expr, Expr2, Name2, Value, T}, Tokens1};
         {_any, _any, _T} ->
             % Is Equals the correct token to use? Should it be the _T in the pattern?
             pe("Invalid assignment target.", Equals)
@@ -345,6 +362,10 @@ call(Tokens) ->
 call_while(Expr, [#t{type=lparen}|Tokens]) ->
     {Expr1,  Tokens1} = finish_call(Expr, Tokens),
     call_while(Expr1, Tokens1);
+call_while(Expr, [#t{type=dot}=T|Tokens]) ->
+    {Id, Tokens1} = identifier(Tokens, "Expect property name after '.'"),
+    GetExpr = {get_expr, Expr, Id, T}, % Expr is the thing called to the left of the dot, like: expr.myMethod()
+    call_while(GetExpr, Tokens1);
 call_while(Expr, Tokens) ->
     {Expr, Tokens}.
 
@@ -377,6 +398,8 @@ primary([#t{type={Label, Val}}=T|Tokens]) when Label == number orelse Label == s
 primary([#t{type={id, Id}}=T|Tokens]) ->
     % ast(variable, Id, T, Tokens);  % This is variable expression that will be looked up at runtime.
     {{variable, erlang:make_ref(), Id, T}, Tokens};
+primary([#t{type=this}=T|Tokens]) ->
+    {{this, erlang:make_ref(), T}, Tokens};
 primary([#t{type=lparen}=T|Tokens])      ->
     {Expr, Tokens1} = expression(Tokens),
     Tokens2 = consume(rparen, Tokens1, "Expect ')' after grouping expression"),

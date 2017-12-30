@@ -1,6 +1,6 @@
 -module(interpreter).
 
--export([init/0, interpret/1, visit/1, error/2, error/4, warn/4, rte/3]).
+-export([init/0, interpret/1, visit/1, error/2, error/4, warn/4, rte/3, bind_method_to_this/2]).
 
 -include("records.hrl").
 
@@ -66,7 +66,14 @@ visit({dumpenv, T}) ->
     environment:dump(T#t.line),
     ok;
 
-visit({function_decl, Name, Parameters, Body, T}) ->
+visit({class_stmt, Name, Methods, T}) -> % The declaration of a class, like: class Bagel { ... }
+    % This two-stage binding looks strange, but allows use of the class name inside its declaration.
+    environment:define(Name, nil), 
+    Class = {class, Name, Methods},
+    environment:assign(Name, Class, T),
+    ok;
+
+visit({function_decl, Name, Parameters, Body, _T}) ->
     Closure = environment:current(),
     NewF = {function_decl, Name, Parameters, Body, Closure},
     environment:define(Name, NewF),
@@ -131,6 +138,42 @@ visit({call, CalleeExpr, Arguments, T}) ->
     % TODO: how to check the type of the callee? See http://www.craftinginterpreters.com/functions.html#call-type-errors
     ArgumentVals = [visit(A) || A <- Arguments],
     lox_callable:call(?MODULE, Callee, ArgumentVals, T);
+
+visit({this, R, T}) ->
+    Val = environment:get(R, "this", T),
+    Val;
+
+
+% A get expression is a chained dot evalation, like: pizza.toppings; // pizza is instance of class Pizza, Toppings is a property
+%  CalleeExpr is to the left of the dot (and should be an instance), Id is to the right of the dot and should be the property name.
+visit({get_expr, CalleeExpr, Id, T}) ->
+    CalleeInstance = visit(CalleeExpr),
+    case lox_callable:is_instance(CalleeInstance) of
+        true -> ok;
+        false -> rte(runtime_error, "Only instances can have properties", T)
+    end,
+    % First, try to find a field by name:
+    PropertyOrMethod = case lookup_property(CalleeInstance, Id, T) of
+        not_found ->
+            % Now look for a method by name:
+            case lookup_method(CalleeInstance, Id, T) of
+                not_found -> missing_property(CalleeInstance, Id, T);
+                Method -> Method
+            end;
+        Property -> Property
+    end,
+    PropertyOrMethod;
+
+visit({set_expr, Expr, Name, Value, T}) ->
+    Object = visit(Expr), %The object on wich a value is being set
+    case lox_callable:is_instance(Object) of
+        true -> ok;
+        false -> rte(runtime_error, "Only instances can have fields", T)
+    end,
+    Val = visit(Value),
+    {lox_instance, _Name, R} = Object,
+    environment:set_object_property(R, Name, Val),
+    Val;
 
 % Assignment expression (e.g. "a = 1;"). Name is the variable name to in which to store the evaluated results of Value.
 visit({assign, R, Name, Value, T}) ->
@@ -286,9 +329,32 @@ check_non_zero(_Op, 0, T) ->
 check_non_zero(_, _, _T) -> ok.
 
 
+lookup_property({lox_instance, _ClassName, R}, PropertyName, _T) ->
+    case environment:get_object_property(R, PropertyName) of
+        {ok, Value} -> Value;
+        error -> not_found
+    end.
+
+lookup_method({lox_instance, ClassName, _R}=Instance, MethodName, _T) ->
+    Methods = environment:get_class_methods(ClassName),
+    case lists:keyfind(MethodName, 2, Methods) of % Each method is a tuple like {function_decl, Name, Parameters, Body, T}
+        false -> not_found;
+        FoundMethod ->
+            bind_method_to_this(FoundMethod, Instance) 
+    end.
+
+bind_method_to_this({function_decl, Name, Parameters, Body, _T}=_Method, {lox_instance, _ClassName, _R}=Instance) ->
+    Closure = environment:current(),
+    % TODO: the book encloses here. Is that needed?
+    environment:define("this", Instance),
+    %mimic a global function, since lox_callable can already execute it:
+    {function_decl, Name, Parameters, Body, Closure}. 
+
+missing_property({_, ClassName, _}, Name, T) ->
+    rte(runtime_error, "Undefined property or method '" ++ Name ++ "' on instance of class '" ++ ClassName ++ "'", T).
+
 % TODO: can we remove the Op param now that we have the token?
-rte(Type, Message, T) ->
-    throw({runtime_error, Type, Message, T#t.line, T#t.literal}).
+rte(Type, Message, T) -> throw({runtime_error, Type, Message, T#t.line, T#t.literal}).
 
 
 % UTILS - TODO: move out of this module. The it doesn't make sense for the parser to call interpreter:error().
@@ -312,11 +378,16 @@ warn(Type, Line, Literal, Message) ->
 highlight(Message) -> io:format("~s", [color:red(Message)]).
 
 
+% When printing a class, just print the name (see test "class4"):
+pretty_print({class, Name, _Methods}) ->
+    io:format("~s~n", [Name]);
+% When printing an instance of a class, print "instance of Name" (see test "class_instance"):
+pretty_print({lox_instance, Name, _State}) ->
+    io:format("instance of ~s~n", [Name]);
 pretty_print(V) when is_list(V) ->
     io:format("~s~n", [V]);
 pretty_print(V) ->
     io:format("~p~n", [V]).
-
 
 print_stacktrace() ->
     io:format("*** BEGIN STACKTRACE ***~n"),

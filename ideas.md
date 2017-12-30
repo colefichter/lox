@@ -1,6 +1,9 @@
 NOTES
 =====
 
+Write a test harnes that can detect compilation errors. Eg. this_error.lox should have a test that passes with a resolve_error.
+
+
 When the gen_server in the shell crashes, we lose the environment. Can we use the erlang callbacks to preserve the state?
     Need to store in db: http://erlang.org/pipermail/erlang-questions/2009-March/042473.html
 
