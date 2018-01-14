@@ -17,16 +17,23 @@ run(Statements) ->
 resolve({dumpenv, _T}, ScopeStack) ->
     ScopeStack;
 
-resolve({class_stmt, Name, Methods, T}, ScopeStack) ->
+resolve({class_stmt, Name, SuperClassName, Methods, T}, ScopeStack) ->
     ScopeStack1 = declare(Name, T, ScopeStack),
     ScopeStack2 = define(Name, ScopeStack1),
     push_current_class(class),
-    ScopeStack3 = begin_scope(ScopeStack2),
-    ScopeStack4 = define("this", ScopeStack3), 
-    ScopeStack5 = resolve_methods(Methods, ScopeStack4),
-    ScopeStack6 = end_scope(ScopeStack5),
+    ScopeStack3 = case SuperClassName of
+        nil -> ScopeStack2;
+        _Any -> 
+            % resolve(SuperClassName, ScopeStack2)
+            % TODO: need to resolve superclass, but can't figure out how to do it...
+            ScopeStack2
+    end,
+    ScopeStack4 = begin_scope(ScopeStack3),
+    ScopeStack5 = define("this", ScopeStack4), 
+    ScopeStack6 = resolve_methods(Methods, ScopeStack5),
+    ScopeStack7 = end_scope(ScopeStack6),
     pop_current_class(),
-    ScopeStack6;
+    ScopeStack7;
 
 resolve({function_decl, Name, _Parameters, _Body, T}=F, ScopeStack) ->
     ScopeStack1 = declare(Name, T, ScopeStack),

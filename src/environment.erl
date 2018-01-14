@@ -6,7 +6,7 @@
 
 -export([create_new_scope/0, create_new_scope/1, replace_scope/1, dump/1]).
 
--export([get_class_methods/1, register_class/1]).
+-export([get_class_methods/1, register_class/1, is_class/1]).
 
 -include("records.hrl").
 
@@ -36,10 +36,17 @@ get_class_methods(ClassName) ->
 	{ok, Methods} = env_dict:get(Pid, {class, ClassName}),
 	Methods.
 
-register_class({class, Name, Methods}) ->
+register_class({class, Name, _SuperClassName, Methods}) ->
 	Pid = global(),
 	env_dict:put(Pid, {class, Name}, Methods),
 	ok.
+
+is_class(Name) ->
+	Pid = global(),
+	case env_dict:get(Pid, {class, Name}) of
+		{ok, _Value} -> true;
+		error -> false
+	end.
 
 % Create a new environment based on the globals
 create_new_scope() ->

@@ -36,10 +36,14 @@ declaration_list(Tokens, Declarations) ->
 
 declaration([#t{type=class}=T|Tokens]) ->
     {Name, Tokens1} = identifier(Tokens, "Expect class name after 'class' keyword"),
-    Tokens2 = consume(lbrace, Tokens1, "Expect '{' before class body"),
-    {Methods, Tokens3} = method_list(Tokens2),
-    Tokens4 = consume(rbrace, Tokens3, "Expect '}' after class body"),
-    {{class_stmt, Name, Methods, T}, Tokens4};    
+    {SuperClassName, Tokens2} = case match(less, Tokens1) of
+        true -> superclass(Tokens1);
+        false -> {nil, Tokens1}
+    end,
+    Tokens3 = consume(lbrace, Tokens2, "Expect '{' before class body"),
+    {Methods, Tokens4} = method_list(Tokens3),
+    Tokens5 = consume(rbrace, Tokens4, "Expect '}' after class body"),
+    {{class_stmt, Name, SuperClassName, Methods, T}, Tokens5};    
 declaration([#t{type='fun'}=T|Tokens]) ->
     function(function, T, Tokens);
 declaration([#t{type=var}=T|Tokens]) ->
@@ -50,6 +54,12 @@ declaration([#t{type=var}=T|Tokens]) ->
 declaration(Tokens) ->
     statement(Tokens).
 %% TODO: Catch parse error and synchronize in declaration()? How to do it? Do we need it?
+
+
+superclass([#t{type=less}|Tokens]) ->
+    {Id, Tokens1} = identifier(Tokens, "Expect superclass name after '<' in class declaration"),
+    {Id, Tokens1}.
+
 
 method_list(Tokens) ->
     method_list([], Tokens).
@@ -427,6 +437,9 @@ consume(_Expected, Tokens, ErrorMessage) ->
     % interpreter:error(T#t.line, T#t.literal, ErrorMessage),
     pe(ErrorMessage, T),
     Tokens.
+
+match(Expected, [#t{type=Expected}|_Tokens]) -> true;
+match(_Expected, _Tokens) -> false.
 
 
 % Create an AST node and return it with the remaining tokens.

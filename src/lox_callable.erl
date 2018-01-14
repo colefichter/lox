@@ -12,8 +12,7 @@ call(Interpreter, Callee, Arguments, T) ->
     invoke(Interpreter, Callee, Arguments, T).
 
 % This match is for class instantiation, for example: var x = Bagel(); //Bagel should be defined as a class.
-invoke(Interpreter, {class, Name, Methods}=Class, Arguments, T) ->
-    environment:register_class(Class), %Instantiate an instance of the class.
+invoke(Interpreter, {class, Name, _SuperClassName, Methods}, Arguments, T) ->
     R = environment:init_object_state(),
     Instance = {lox_instance, Name, R},
     case find_init_method(Methods) of % If the class has a constructor, bind it and run it

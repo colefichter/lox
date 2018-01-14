@@ -66,10 +66,12 @@ visit({dumpenv, T}) ->
     environment:dump(T#t.line),
     ok;
 
-visit({class_stmt, Name, Methods, T}) -> % The declaration of a class, like: class Bagel { ... }
+visit({class_stmt, Name, SuperClassName, Methods, T}) -> % The declaration of a class, like: class Bagel { ... }
     % This two-stage binding looks strange, but allows use of the class name inside its declaration.
-    environment:define(Name, nil), 
-    Class = {class, Name, Methods},
+    environment:define(Name, nil),
+    validate_superclass(SuperClassName, T),
+    Class = {class, Name, SuperClassName, Methods},
+    environment:register_class(Class),
     environment:assign(Name, Class, T),
     ok;
 
@@ -328,6 +330,17 @@ check_non_zero(_Op, 0, T) ->
     rte(divide_by_zero, "Divide by zero is invalid", T);
 check_non_zero(_, _, _T) -> ok.
 
+validate_superclass(nil, _T) -> ok;
+validate_superclass(SuperClassName, T) ->
+    % SuperClassVal = visit(SuperClassName),
+    % case lox_callable:is_instance(SuperClassVal) of
+
+io:format("validate ~p~n", [SuperClassName]),
+
+    case environment:is_class(SuperClassName) of
+        true -> ok;
+        false -> rte(runtime_error, "Superclass must be a class", T)
+    end.
 
 lookup_property({lox_instance, _ClassName, R}, PropertyName, _T) ->
     case environment:get_object_property(R, PropertyName) of
@@ -379,8 +392,10 @@ highlight(Message) -> io:format("~s", [color:red(Message)]).
 
 
 % When printing a class, just print the name (see test "class4"):
-pretty_print({class, Name, _Methods}) ->
+pretty_print({class, Name, nil, _Methods}) ->
     io:format("~s~n", [Name]);
+pretty_print({class, Name, SuperClassName, _Methods}) ->
+    io:format("~s < ~s~n", [Name, SuperClassName]);
 % When printing an instance of a class, print "instance of Name" (see test "class_instance"):
 pretty_print({lox_instance, Name, _State}) ->
     io:format("instance of ~s~n", [Name]);
